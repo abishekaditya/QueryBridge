@@ -1,0 +1,10 @@
+[doc-gen4]
+rootModule = "QueryBridge"
+srcDir = "src"
+outDir = "docs"
+styleSheet = "atom-one-light"
+modulePrefix = "QueryBridge"
+mainModuleTypes = [
+  "def", "class", "structure", "inductive"
+]
+mainModuleDocs = true

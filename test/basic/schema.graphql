@@ -1,0 +1,14 @@
+type User {
+  username: String!
+}
+
+type Project {
+  name: String!
+  tagline: String
+  contributors: [User!]!
+}
+
+type Query {
+  # Fetch a single project by name.
+  project(name: String!): Project
+}

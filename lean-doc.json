@@ -1,0 +1,12 @@
+{
+  "title": "QueryBridge Documentation",
+  "srcDir": ".",
+  "outputDir": "docs",
+  "stylesheet": "default",
+  "mainModule": "QueryBridge",
+  "moduleNames": [
+    "QueryBridge",
+    "QueryBridge.Basic",
+    "Main"
+  ]
+}

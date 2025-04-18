@@ -1,0 +1,14 @@
+% ---------- facts (data) ----------
+% project(Name, Tagline).
+project("GraphQL", "A query language for APIs").
+project("Lean",     "Theorem proving for everyone").
+
+% user(UserName).
+user("alice").
+user("bob").
+user("eva").
+
+% contributor(ProjectName, UserName).
+contributor("GraphQL", "alice").
+contributor("GraphQL", "bob").
+contributor("Lean", "eva").
