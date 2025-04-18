@@ -1,0 +1,14 @@
+{
+  topEmployeesBySalary(limit: 5) {
+    id
+    name
+    salary
+    department {
+      name
+    }
+    rank
+    percentile
+    departmentAverage
+    overallAverage
+  }
+}

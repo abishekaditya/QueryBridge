@@ -1,0 +1,3 @@
+% Expected result with filter on denormalized data
+ans(OrderID, ProductName, ProductPrice, Quantity, TotalPrice, Status, OrderDate, DeliveryDate) :-
+  order(OrderID, "John Doe", _, _, _, ProductName, ProductPrice, Quantity, TotalPrice, Status, _, _, OrderDate, DeliveryDate).

@@ -1,0 +1,46 @@
+% ---------- facts (data) ----------
+% user(ID, Name, Email).
+user("1", "Alice Smith", "alice@example.com").
+user("2", "Bob Johnson", "bob@example.com").
+user("3", "Charlie Brown", "charlie@example.com").
+
+% post(ID, Title, Content, AuthorID).
+post("101", "Introduction to GraphQL", "This is a post about GraphQL basics...", "1").
+post("102", "Advanced XSB Techniques", "Exploring complex datalog queries...", "1").
+post("103", "Database Normalization", "Understanding the principles of normalization...", "2").
+
+% comment(ID, Text, AuthorID, PostID).
+comment("201", "Great post!", "2", "101").
+comment("202", "Thanks for sharing", "3", "101").
+comment("203", "Can you elaborate on point 3?", "2", "102").
+comment("204", "Very informative", "1", "103").
+
+% reply(CommentID, ReplyID).
+reply("201", "205").
+reply("203", "206").
+comment("205", "Thanks Bob!", "1", "101").
+comment("206", "Sure, I'll explain more in the next post", "1", "102").
+
+% category(ID, Name).
+category("301", "Programming").
+category("302", "Databases").
+category("303", "Web Development").
+category("304", "SQL").
+category("305", "NoSQL").
+
+% subcategory(CategoryID, SubcategoryID).
+subcategory("301", "303").
+subcategory("302", "304").
+subcategory("302", "305").
+
+% post_category(PostID, CategoryID).
+post_category("101", "301").
+post_category("101", "303").
+post_category("102", "302").
+post_category("102", "304").
+post_category("103", "302").
+
+% user_post(UserID, PostID).
+user_post("1", "101").
+user_post("1", "102").
+user_post("2", "103").

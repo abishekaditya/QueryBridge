@@ -120,11 +120,15 @@ ans(Tagline) :- project("GraphQL", Tagline).
 │   └── QueryBridge/       # Library components
 │       └── Basic.lean     # Core translator functionality
 ├── test/                  # Test cases
-│   └── basic/             # Basic test examples
-│       ├── facts.xsb      # Example Datalog facts
-│       ├── query.graphql  # Example GraphQL query
-│       ├── result.xsb     # Expected output
-│       └── schema.graphql # Example GraphQL schema
+│   ├── basic/             # Basic test examples
+│   │   ├── facts.xsb      # Example Datalog facts
+│   │   ├── query.graphql  # Example GraphQL query
+│   │   ├── result.xsb     # Expected output
+│   │   └── schema.graphql # Example GraphQL schema
+│   ├── nested_tables/     # Complex nested relationships test
+│   ├── bad_normalization/ # Denormalized schema test
+│   └── window_functions/  # SQL window function-like analytics test
+├── run-tests.sh           # Test runner script
 ├── lakefile.toml          # Lake build configuration
 ├── doc-gen.toml           # Documentation generation config
 └── README.md              # This file
@@ -139,7 +143,7 @@ To ensure the translator is working correctly:
 lake build
 ```
 
-2. Run the translator with the test case:
+2. Run the translator with the basic test case:
 ```bash
 .lake/build/bin/querybridge
 ```
@@ -150,11 +154,49 @@ lake build
 ans(Tagline) :- project("GraphQL", Tagline).
 ```
 
-You can also create your own test cases by:
-1. Creating a GraphQL schema file
-2. Creating a GraphQL query file
-3. Running the translator with these files
-4. Verifying the XSB Datalog output
+### Running All Tests (Does not work Right Now)
+
+The project includes multiple test cases that exercise different aspects of the GraphQL to Datalog translation:
+
+- **Basic**: Simple GraphQL query with a single field
+- **Nested Tables**: Tests deep nesting of entities with multiple levels of relationships
+- **Bad Normalization**: Tests handling of denormalized schemas with redundant data
+- **Window Functions**: Tests analytical functions similar to SQL window functions
+
+To run all tests sequentially:
+
+```bash
+./run-tests.sh
+```
+
+### Running Individual Tests
+
+You can run tests individually using:
+
+```bash
+# Run the basic test case
+.lake/build/bin/querybridge test/basic/schema.graphql test/basic/query.graphql test/basic/output.xsb
+
+# Run the nested tables test case
+.lake/build/bin/querybridge test/nested_tables/schema.graphql test/nested_tables/query.graphql test/nested_tables/output.xsb
+
+# Run the bad normalization test case
+.lake/build/bin/querybridge test/bad_normalization/schema.graphql test/bad_normalization/query.graphql test/bad_normalization/output.xsb
+
+# Run the window functions test case
+.lake/build/bin/querybridge test/window_functions/schema.graphql test/window_functions/query.graphql test/window_functions/output.xsb
+```
+
+### Creating Your Own Test Cases
+
+You can create your own test cases by:
+1. Creating a directory under `test/` with a descriptive name
+2. Adding a GraphQL schema file (`schema.graphql`)
+3. Adding a GraphQL query file (`query.graphql`)
+4. Adding a file with sample data (`facts.xsb`)
+5. Adding a file with expected output (`result.xsb`)
+6. Running the translator with these files
+7. Verifying the XSB Datalog output
 
 ## Documentation
 
@@ -198,9 +240,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 6. XSB Systems Group, *XSB 4.0 Manual*, 2024.
 7. Soufflé Development Team, *Soufflé Datalog Engine*, [https://souffle-lang.github.io](https://souffle-lang.github.io)
 8. G. Gebser *et al.*, *clingo User Guide*, 2024.
-9. Claude AI for helping generate code to make basic test case pass. Will be replaced with proper working code in the future.
+  
 
-**Acknowledgements** — Prof. Yanhong Liu for project guidance; 
+**Acknowledgements** —
 
----
+Prof. Yanhong Liu for project guidance;
+
+Claude AI for helping generate code to make basic test case pass. Will be replaced with proper working code in the future;
 

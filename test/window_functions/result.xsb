@@ -1,0 +1,10 @@
+% Expected result with analytics functions (window functions in SQL)
+% This represents the top 5 employees by salary with their analytics information
+ans(ID, Name, Salary, DepartmentName, Rank, Percentile, DeptAvgSalary, OverallAvgSalary) :-
+  rankBySalary(ID, Rank),
+  Rank =< 5,
+  employee(ID, Name, Salary, DeptID, _),
+  department(DeptID, DepartmentName),
+  salaryPercentile(ID, Percentile),
+  deptAvgSalary(DeptID, DeptAvgSalary),
+  overallAvgSalary(OverallAvgSalary).

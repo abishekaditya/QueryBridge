@@ -1,0 +1,26 @@
+{
+  user(id: "1") {
+    name
+    posts {
+      title
+      categories {
+        name
+        subcategories {
+          name
+        }
+      }
+      comments {
+        text
+        author {
+          name
+        }
+        replies {
+          text
+          author {
+            name
+          }
+        }
+      }
+    }
+  }
+}
