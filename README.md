@@ -8,7 +8,7 @@
 
 ## Part I. Problem & Plan
 
-### 1 Problem description
+### 1 Problem description [Link to Old Gist](https://gist.github.com/abishekaditya/837bbc7261a7bc28df3bac692535d710)
 
 | Aspect                | Specification                                                                                                                                                                                                                                                 |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -46,6 +46,7 @@ No existing tool provides **automatic best‑complexity translation from GraphQL
 
 ## Part II. Design
 
+Currently, the Basic.lean file is just a AI generated code that is there to pass the basic test case. Actual development is happening in parallel, which, when done will replace Basic.lean.
 
 ## Installation
 
@@ -180,21 +181,6 @@ open docs/index.html
 
 The documentation is generated from the doc comments in the source code, following the Lean 4 documentation standards.
 
-### Verifying Documentation
-
-To verify that documentation generation is working correctly:
-
-```bash
-# Check if DocGen4 is properly configured
-grep -q "DocGen4" lakefile.toml && echo "DocGen4 is configured" || echo "DocGen4 is not configured"
-
-# Verify that the documentation script is executable
-test -x scripts/gen-docs.sh && echo "Documentation script is executable" || echo "Documentation script is not executable"
-
-# Check that the source files have documentation comments
-grep -n "/--" src/Basic.lean
-```
-
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -212,8 +198,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 6. XSB Systems Group, *XSB 4.0 Manual*, 2024.
 7. Soufflé Development Team, *Soufflé Datalog Engine*, [https://souffle-lang.github.io](https://souffle-lang.github.io)
 8. G. Gebser *et al.*, *clingo User Guide*, 2024.
+9. Claude AI for helping generate code to make basic test case pass. Will be replaced with proper working code in the future.
 
-**Acknowledgements** — Prof. Yanhong Liu for project guidance;
+**Acknowledgements** — Prof. Yanhong Liu for project guidance; 
 
 ---
 
