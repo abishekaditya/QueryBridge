@@ -1,6 +1,6 @@
 # QueryBridge: GraphQL‑to‑Datalog Optimizer
 
-*Translate GraphQL queries into provably optimal Datalog programs with demand transformation optimization.*
+*Translate GraphQL queries into Datalog programs with demand transformation optimization.*
 
 ---
 
@@ -225,5 +225,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgements
 
-- Prof. Yanhong Annie Liu (Stony Brook University) for project guidance
-- GraphQL Foundation for graphql-core library
+- [Prof. Yanhong Annie Liu](https://www3.cs.stonybrook.edu/~liu/) (Stony Brook University) for project guidance
+- GraphQL Foundation for [graphql-core](https://github.com/graphql-python/graphql-core) library
+- ([Claude AI](https://www.anthropic.com/claude)) for helping with documentation
