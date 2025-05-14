@@ -379,7 +379,8 @@ def main() -> None:
         if {"facts.P", "schema.graphql", "query.graphql"}.issubset(names):
             bench_folder(sub, args.runs, args.xsb_path)
 
+    clean(supress=True)
+
 
 if __name__ == "__main__":
     main()
-    clean()
