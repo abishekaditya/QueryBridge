@@ -130,9 +130,71 @@ code = translate_graphql_to_xsb("schema.gql", "query.gql",
 print(code)
 \end{lstlisting}
 
+
+\subsection{Testing}
+
+Run the consolidated end‐to‐end test suite across all your test cases:
+
+\begin{lstlisting}[language=bash]
+python tests.py
+\end{lstlisting}
+
+You should see output like:
+
+\subsection{Testing}
+
+Run the consolidated end‐to‐end test suite:
+
+\begin{lstlisting}[language=bash]
+python tests.py
+\end{lstlisting}
+
+The script prints its results as a Python docstring, for example:
+
+\begin{lstlisting}
+=== Running test in basic ===
+  Generating XSB (no demand)... done.
+  Generating XSB (with demand)... done.
+  Running XSB (no demand)... done.
+  Running XSB (with demand)... done.
+  PASS: outputs match
+
+=== Running test in nested ===
+  Generating XSB (no demand)... done.
+  Generating XSB (with demand)... done.
+  Running XSB (no demand)... done.
+  Running XSB (with demand)... done.
+  PASS: outputs match
+
+Summary: 2/2 tests passed.
+\end{lstlisting}
+
+The script exits with code 0 if all tests pass, or non‐zero otherwise.
+
+
+
+
+\subsection{Benchmark}
+Micro-benchmark GraphQL/SQLite vs. XSB. For each `schema.graphql` + `query.graphql` in the given test folder, this script:
+
+\begin{enumerate}
+  \item Runs GraphQL via Ariadne + SQLite and measures timing.
+  \item Generates XSB code (with and without demand) via \texttt{translate\_graphql\_to\_xsb}, writes Prolog drivers, runs them in XSB, and measures timing.
+  \item Verifies that the outputs match between both XSB variants and compares counts with the SQLite path.
+\end{enumerate}
+
+\begin{lstlisting}[language=bash]
+pip install ariadne graphql-core sqlalchemy
+
+python benchmark.py tests --runs 5 --xsb-path /usr/local/bin/xsb
+\end{lstlisting}
+
+Use \texttt{--runs} to override the default number of iterations, and \texttt{--xsb-path} to point to your XSB executable.
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Core Code-Generation Passes}
+\section{Core Query Generation Process}
 \label{sec:codegen}
 
 QueryBridge’s translator is organised around three tightly-coupled

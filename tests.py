@@ -8,7 +8,7 @@ For each subfolder in `tests/`, this script will:
 2. If only `facts.xsb` is present, copy it to `facts.P`.
 3. Generate XSB code with and without demand transformation.
 4. Produce two Prolog driver files that load `facts.P` and the generated code,
-   issue the `ans/…` query, and halt.
+   issue the `ans/...` query, and halt.
 5. Invoke XSB on each driver and compare their outputs.
 6. Report pass/fail per test and exit nonzero if any fail.
 
@@ -65,14 +65,14 @@ def run_test_for_dir(test_dir: Path) -> bool:
         pass
 
     # generate two variants
-    print("  Generating XSB (no demand)…", end="", flush=True)
+    print("  Generating XSB (no demand)...", end="", flush=True)
     code_no = translate_graphql_to_xsb(schema, query, apply_demand=False)
     print(" done.")
-    print("  Generating XSB (with demand)…", end="", flush=True)
+    print("  Generating XSB (with demand)...", end="", flush=True)
     code_yes = translate_graphql_to_xsb(schema, query, apply_demand=True)
     print(" done.")
 
-    # detect arity of ans/… by regex on the no-demand code
+    # detect arity of ans/... by regex on the no-demand code
     m = re.search(r"\bans\(([^)]+)\)", code_no)
     if not m:
         print("  ERROR: could not find `ans(...)` in generated code")
@@ -120,10 +120,10 @@ def run_test_for_dir(test_dir: Path) -> bool:
             os.unlink(out.name)
 
     try:
-        print("  Running XSB (no demand)…", end="", flush=True)
+        print("  Running XSB (no demand)...", end="", flush=True)
         res_no = exec_xsb(drv_no)
         print(" done.")
-        print("  Running XSB (with demand)…", end="", flush=True)
+        print("  Running XSB (with demand)...", end="", flush=True)
         res_yes = exec_xsb(drv_yes)
         print(" done.")
     except subprocess.CalledProcessError as e:
@@ -132,10 +132,10 @@ def run_test_for_dir(test_dir: Path) -> bool:
 
     # compare
     if res_no == res_yes:
-        print("  ✓ PASS: outputs match")
+        print("   PASS: outputs match")
         return True
     else:
-        print("  ✗ FAIL: outputs differ")
+        print("   FAIL: outputs differ")
         print("    -- without demand:\n    " + "\n    ".join(res_no.splitlines()))
         print("    -- with demand:\n    "    + "\n    ".join(res_yes.splitlines()))
         return False
