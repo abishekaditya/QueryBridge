@@ -26,7 +26,7 @@ A key feature is the demand transformation (magic sets) functionality, which opt
 
 1. Clone or download the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/abishekaditya/QueryBridge
 cd QueryBridge
 ```
 
@@ -70,6 +70,10 @@ print(optimized_result)
 ```
 
 ## Documentation
+
+Report.pdf contains the report for the project.
+
+cse505_presentation.pdf contains the presentation slides.
 
 Comprehensive documentation is available in the `docs/` directory. The documentation is built with Sphinx and includes:
 

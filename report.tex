@@ -130,17 +130,6 @@ code = translate_graphql_to_xsb("schema.gql", "query.gql",
 print(code)
 \end{lstlisting}
 
-
-\subsection{Testing}
-
-Run the consolidated end‐to‐end test suite across all your test cases:
-
-\begin{lstlisting}[language=bash]
-python tests.py
-\end{lstlisting}
-
-You should see output like:
-
 \subsection{Testing}
 
 Run the consolidated end‐to‐end test suite:
@@ -275,7 +264,7 @@ Translator for a tiny GraphQL subset (no fragments, variables, nesting); unmaint
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation Status}
-QueryBridge v 0.3 can already take a GraphQL schema + query pair, compile it to naïve XSB Datalog, and then rewrite the program with classic Magic-Set demand transformation so that only facts relevant to the bound arguments reach the join—yielding visibly smaller rule sets and faster XSB execution in our unit tests. Each test directory under tests/ contains a schema, query, and ground-truth fact file; the runner generates two Datalog files (with and without demand), executes both under XSB, and asserts that the answer predicates idential, confirming that demand transformation preserves semantics even as it prunes intermediate relations. A separate “benchmark” target meant to time queries and count rule sizes is stubbed out because of the state-of-the-art tools available in python not returning proper SQL queries for complex graphql queries to benchmark against.
+QueryBridge will take a GraphQL schema + query pair, compile it to naïve XSB Datalog, and then rewrite the program with classic Magic-Set demand transformation so that only facts relevant to the bound arguments reach the join—yielding visibly smaller rule sets and faster XSB execution in our unit tests. The unified test runner (tests.py) now discovers every subfolder under tests/, generates two Datalog files (with and without demand), executes both under XSB, and asserts that the ans/… predicates are identical, confirming that demand transformation preserves semantics even as it prunes intermediate relations. Likewise, the benchmark script (benchmark.py) has been fleshed out to time each variant over configurable runs, report throughput and rule‐count statistics, and compare naïve vs. demand-transformed performance.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Future Work}
