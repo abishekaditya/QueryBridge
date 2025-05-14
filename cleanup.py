@@ -43,7 +43,7 @@ def cleanup_test_directory(test_dir):
                     print(f"  Error removing {file_path.name}: {e}")
 
 
-def main():
+def clean():
     """Main function to run the cleanup script."""
     # Get the root directory of the project
     root_dir = Path(__file__).parent
@@ -80,4 +80,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(clean())

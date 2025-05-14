@@ -19,11 +19,8 @@ python benchmark.py tests --runs 5 --xsb-path /usr/local/bin/xsb
 
 from __future__ import annotations
 import argparse
-import os
 import re
 import subprocess
-import sys
-import tempfile
 import time
 import statistics
 from pathlib import Path
@@ -41,6 +38,8 @@ from sqlalchemy import Column, MetaData, Table, Text, create_engine, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import alias
 from ariadne import ObjectType, QueryType, gql, make_executable_schema
+
+from cleanup import clean
 
 try:
     from querybridge.translator import translate_graphql_to_xsb
@@ -383,3 +382,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    clean()
