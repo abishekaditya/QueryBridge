@@ -520,7 +520,8 @@ def generate_answer_predicate(root_fields: List[QueryField], rules: List[str]) -
 
         # For scalar fields, create a variable for the answer predicate
         if field.is_scalar:
-            var_name = f"{current_path}"
+            # Use capitalized variable name directly
+            var_name = f"{current_path.upper()}"
             variable_map[current_path] = var_name
             field_vars.append(var_name)
 
@@ -566,7 +567,7 @@ def generate_answer_predicate(root_fields: List[QueryField], rules: List[str]) -
 
     # Create the answer predicate
     if field_vars:
-        # Use the collected variables in the answer predicate
+        # Use capitalized variables both in the head and in the body
         head = f"ans({', '.join(field_vars)})"
         body = ', '.join(unique_body_parts)
         rules.append(f"{head} :- {body}.")

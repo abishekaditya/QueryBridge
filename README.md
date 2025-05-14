@@ -136,20 +136,22 @@ ans(Tagline) :- project_result(ROOT, Tagline).
 To run the test suite:
 
 ```bash
-# Run the simple test
-python test/simple/test_simple.py
-
-# Run all tests (when available)
+# Run all tests
 ./run-tests.py
 
 # Run specific tests
-./run-tests.py basic nested_tables
+./run-tests.py basic nested
 
 # Keep output files for inspection
 ./run-tests.py --keep-output
 
-# Run benchmarks to compare performance
-./benchmark.py --iterations 5
+# Clean up generated files
+./run-tests.py --cleanup
+# or
+./cleanup.py
+
+# Test variable capitalization specifically
+python test_capitalization.py
 ```
 
 ## Project Structure

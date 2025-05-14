@@ -245,8 +245,27 @@ if __name__ == "__main__":
         "--keep-output", "-k", action="store_true",
         help="Keep output files after tests"
     )
+    parser.add_argument(
+        "--cleanup", "-c", action="store_true",
+        help="Clean up all generated files (including those from previous runs)"
+    )
     
     args = parser.parse_args()
+    
+    if args.cleanup:
+        # Import and run the cleanup script
+        cleanup_script = project_root / "cleanup.py"
+        if cleanup_script.exists():
+            try:
+                subprocess.run([sys.executable, str(cleanup_script)], check=True)
+                return 0
+            except Exception as e:
+                print(f"Error running cleanup script: {e}")
+                return 1
+        else:
+            print("Cleanup script not found.")
+            return 1
+    
     success = run_tests(args.tests, args.keep_output)
     
     sys.exit(0 if success else 1)
