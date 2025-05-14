@@ -17,6 +17,9 @@ A key feature is the demand transformation (magic sets) functionality, which opt
 * Generate equivalent XSB Datalog queries
 * Apply demand transformation for query optimization
 * Support for complex nested queries
+* Comprehensive documentation with Sphinx
+* Automated testing for different query types
+* Performance benchmarking tools
 * Simple and extensible design
 
 ## Installation
@@ -68,10 +71,21 @@ print(optimized_result)
 
 ## Documentation
 
-Comprehensive documentation is available in the `docs/` directory:
+Comprehensive documentation is available in the `docs/` directory. The documentation is built with Sphinx and includes:
 
-- `docs/demand_optimization_example.md` - Explanation of demand transformation optimization
-- `docs/index.md` - Overview of the library
+- API reference with auto-generated module documentation
+- Detailed explanation of demand transformation optimization
+- Usage examples and code snippets
+- Getting started guide
+
+To build the documentation:
+
+```bash
+cd docs
+make html
+```
+
+Then open `docs/_build/html/index.html` in your browser.
 
 ## Examples
 
@@ -131,53 +145,74 @@ ans(Tagline) :- project_result(ROOT, Tagline).
 % NOTE: Applied demand transformation 'demand_project_B' (B) because it has 1 bound argument(s)
 ```
 
-## Testing
+## Testing and Benchmarking
 
-To run the test suite:
+### Testing
+
+The project includes multiple test cases to verify functionality:
 
 ```bash
+# Run basic tests
+python test_basic.py
+
+# Run nested query tests
+python test_nested.py
+
 # Run all tests
-./run-tests.py
+python tests.py
 
-# Run specific tests
-./run-tests.py basic nested
+# Clean up generated files after testing
+python cleanup.py
+```
 
-# Keep output files for inspection
-./run-tests.py --keep-output
+### Benchmarking
 
-# Clean up generated files
-./run-tests.py --cleanup
-# or
-./cleanup.py
+Performance benchmarking is available to measure translation speed and optimization impact:
 
-# Test variable capitalization specifically
-python test_capitalization.py
+```bash
+# Run benchmarks
+python benchmark.py
+
+# Run benchmarks with specific options
+python benchmark.py --iterations 100 --demand
 ```
 
 ## Project Structure
 
 ```
 .
-├── docs/                 # Documentation files
+├── docs/                     # Documentation files
+│   ├── _build/               # Built documentation output
+│   ├── api/                  # API documentation
+│   ├── source/               # Sphinx source files
+│   ├── conf.py               # Sphinx configuration
+│   ├── index.rst             # Documentation main page
+│   ├── modules.rst           # Module documentation
+│   ├── demand_transformation.rst # Demand transformation docs
 │   ├── demand_optimization_example.md
-│   ├── demand_transformation.md
-│   └── index.md
-├── src/                  # Source code
-│   └── querybridge/      # Main package
-│       ├── __init__.py   # Package initialization
-│       ├── __main__.py   # CLI entry point
-│       └── translator.py # Core translator functionality
-├── test/                 # Test cases
-│   └── simple/            # Simple test for verification
+│   └── querybridge_basic.md
+├── src/                      # Source code
+│   └── querybridge/          # Main package
+│       ├── __init__.py       # Package initialization
+│       ├── __main__.py       # CLI entry point
+│       ├── Basic.lean        # Lean theorem prover integration
+│       └── translator.py     # Core translator functionality
+├── tests/                    # Test cases
+│   ├── basic/                # Basic test for verification
+│   │   ├── schema.graphql
+│   │   ├── query.graphql
+│   │   └── facts.P
+│   └── nested/               # Nested query tests
 │       ├── schema.graphql
 │       ├── query.graphql
-│       ├── facts.P
-│       └── test_simple.py
-├── benchmark.py          # Performance benchmark script
-├── query_bridge.py       # Standalone script version
-├── run-tests.py          # Test runner script
-├── setup.py              # Package installation script
-└── README.md             # This file
+│       └── facts.P
+├── benchmark.py              # Performance benchmark script
+├── cleanup.py                # Cleanup script for generated files
+├── test_basic.py             # Test runner for basic queries
+├── test_nested.py            # Test runner for nested queries
+├── tests.py                  # General test runner
+├── requirements.txt          # Project dependencies
+└── README.md                 # This file
 ```
 
 ## License
