@@ -131,12 +131,63 @@ print(code)
 \end{lstlisting}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Complex Path Searching}
-GraphQL can traverse arbitrarily long edge chains—e.g.\ “all repositories
-reachable from a user via \texttt{starredBy} / \texttt{forkedFrom} up to depth 3.”
-These recursive patterns map neatly to Datalog, and QueryBridge can
-\emph{generate} the rules, but efficient execution still requires a
-recursion-aware SQL engine—something the ecosystem currently lacks.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Core Code-Generation Passes}
+\label{sec:codegen}
+
+QueryBridge’s translator is organised around three tightly-coupled
+code-generation routines.  Together they turn a typed GraphQL AST into an
+XSB program that is both semantically correct and, when requested, fully
+optimised with demand transformation.
+
+\subsection{\texttt{generate\_predicate\_rules(ast\_node) $\rightarrow$ List\texttt{[}Rule\texttt{]}}}
+\begin{itemize}[leftmargin=1.5em]
+  \item Accepts a field-selection, fragment, or inline fragment node.
+  \item Emits naïve Datalog rules whose \emph{head} predicate corresponds
+        to the GraphQL field name.  
+  \item For nested selections the function recurses, stitching together
+        child predicates with join conditions determined from the schema’s
+        type relationships (e.g.\ @\texttt{oneToMany}, interfaces,
+        unions).
+  \item Attaches argument constraints as \emph{equality literals} in the
+        rule body so that simple filters are pushed as far down the join
+        tree as possible even before demand optimisation.
+\end{itemize}
+
+\subsection{\texttt{generate\_answer\_predicate(root\_field, binds) $\rightarrow$ Rule}}
+\begin{itemize}[leftmargin=1.5em]
+  \item Builds the \texttt{ans/\,$N$} predicate that serves as the query
+        answer returned to the user.
+  \item Injects constant bindings gathered from GraphQL arguments
+        (\texttt{id}, \texttt{name}, \ldots) directly into the goal list,
+        ensuring evaluation can start with those keys bound.
+  \item The resulting rule is the \emph{only} entry point for evaluation,
+        which simplifies later correctness proofs and unit checks.
+\end{itemize}
+
+\subsection{\texttt{generate\_demand\_transformation(rules) $\rightarrow$ List\texttt{[}Rule\texttt{]}}}
+\begin{enumerate}[label=\arabic*., leftmargin=1.6em]
+  \item \textbf{Create demand predicates.}  
+        For every original predicate \(p/\,k\) a fresh demand version
+        \(p\_d/\,k\) is generated, whose first arguments encode the bound
+        keys.
+  \item \textbf{Propagate bindings via SIP.}  
+        Sideways-information-passing rules are synthesized to move key
+        bindings from parent to child predicates exactly as prescribed by
+        the SIP strategy chosen for each join (hash-join, indexed
+        lookup, depth-first, etc.).
+  \item \textbf{Rewrite rule bodies.}  
+        Occurrences of the original predicates are replaced by their
+        demand-aware counterparts, guarded by the newly created demand
+        relations.  This step is semantics-preserving \cite{DemandTransform}
+        yet typically shrinks the ground program by an order of
+        magnitude in our benchmarks.
+\end{enumerate}
+
+Together, these three passes reduce a complex GraphQL query to a compact,
+table-driven XSB program that executes with far fewer intermediate
+tuples—especially when deep nesting or recursion is involved.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{State of the Art}

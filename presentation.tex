@@ -47,6 +47,10 @@
   \tableofcontents[hideallsubsections]
 \end{frame}
 
+\begin{frame}{Why am I here?}
+        Alphabetical luck.
+\end{frame}
+
 % 3 — Motivation / Problem -------------------------------------------
 \section{Motivation}
 \begin{frame}{Motivation: Why optimize GraphQL?}
@@ -366,17 +370,15 @@ m_comments_B(CommentID) :- demand_comments_B(PostID), post_comments(PostID, Comm
       \begin{itemize}
         \item Basic: Simple queries with 1-2 levels
         \item Nested: Relationships up to 3 levels deep
-        \item Complex Path: Up to 7 levels of nested relationships
         \item Path Finding: Graph traversal with complex filters
       \end{itemize}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \textbf{Performance Improvements}
+      \textbf{Theoretical Performance Improvements}
       \begin{itemize}
-        \item Basic: 1.5-2x speedup
-        \item Nested: 2-3x speedup 
-        \item Complex Path: 3-10x speedup
-        \item With Selective Filters: Up to 50x speedup
+            \item Very complex path searching
+            \item Large data sets (> 10,000 facts)
+            \item Work in Progress
       \end{itemize}
     \end{column}
   \end{columns}
@@ -430,7 +432,8 @@ m_comments_B(CommentID) :- demand_comments_B(PostID), post_comments(PostID, Comm
   \vspace{0.3cm}
   \centering GitHub: \texttt{github.com/abishekaditya/QueryBridge}
   \bigskip
-  \centering Questions? \smiley
+  \\
+  Questions?
 \end{frame}
 
 % --------------------------------------------------------------------
