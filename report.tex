@@ -1,0 +1,214 @@
+% QueryBridge Phase 1 Report
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{url}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{QueryBridge: GraphQL-to-Datalog Optimizer}
+\rhead{\thepage}
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{1em}{}
+
+\title{\textbf{QueryBridge: GraphQL-to-Datalog Optimizer}\\
+\large Translate GraphQL queries into Datalog programs with demand-transformation optimisation}
+\author{Abishek Aditya \\ Stony Brook University \\ 116551308}
+\date{May 14, 2025}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Problem and Plan}
+\subsection{Problem Description}
+\paragraph{Objective.}
+QueryBridge converts \emph{GraphQL} queries into \emph{XSB Datalog} and rewrites the resulting program with demand transformation—a magic-sets–style optimisation that aggressively pushes bindings downward, eliminating unnecessary intermediate relations.  
+The tool accepts:
+\begin{enumerate}[label=\arabic*.]
+  \item a GraphQL schema file,
+  \item one or more GraphQL query files.
+\end{enumerate}
+It emits an \texttt{.P} file whose top-level predicate is \texttt{ans/\,N}.  
+Demand transformation follows Liu \emph{et al.} \cite{DemandTransform}.
+
+\paragraph{Interface.}
+\begin{itemize}[nosep,leftmargin=1.5em]
+  \item \textbf{CLI} \verb|python -m querybridge schema.gql query.gql [--demand]|
+  \item \textbf{API} \verb|translate_graphql_to_xsb(schema, query, apply_demand)|$\!\rightarrow$string
+\end{itemize}
+
+\paragraph{Requirements.}
+\begin{enumerate}[label=\arabic*.]
+  \item Parse GraphQL schemas and queries.
+  \item Generate semantically equivalent Datalog.
+  \item Apply demand transformation on request.
+  \item Support nested selections, arguments and fragments.
+  \item Translate typical queries in under two seconds.
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Overview of the Tool}
+QueryBridge is organised as a three-stage pipeline:
+\begin{enumerate}[label=\arabic*.]
+  \item GraphQL front-end builds typed ASTs.
+  \item Rule generator emits naïve Datalog.
+  \item Optimiser rewrites with demand transformation, then pretty-prints.
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Features}
+\begin{itemize}[leftmargin=1.5em]
+  \item GraphQL schema and query parsing.
+  \item Generation of XSB-compatible Datalog.
+  \item Demand transformation optimiser \cite{DemandTransform}.
+  \item Support for deeply nested queries and argument filters.
+  \item Clean, extensible Python code base.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Methodology: Demand Transformation and SIP Strategies}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Demand Transformation}~\cite{DemandTransform}:  
+        Refines classic magic-set rewriting by dynamically pruning irrelevant facts during evaluation, slashing intermediate materialisation cost.
+  \item \textbf{SIP (Sideways Information Passing) Strategies}~\cite{SIPSlides}:  
+        Control how variable bindings propagate between sub-goals, letting the optimiser choose an evaluation order that minimises search space in Datalog.
+\end{itemize}
+These two techniques steer both translation and optimisation, enabling QueryBridge to handle deeply nested and recursive GraphQL queries efficiently.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Prior Research}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Hasura GraphQL Engine} \cite{Hasura}: Generates optimised SQL from GraphQL but hides the translation inside a server process.
+  \item \textbf{XSB Datalog Engine} \cite{XSB}: Mature logic-programming runtime with tabling and indexing; used here as the execution back-end.
+  \item \textbf{Magic-Set Optimisation Slides} \cite{SIPSlides}: Overview of magic sets, semi-naïve evaluation and SIP strategy selection.
+  \item \textbf{Deductive DBMS CORAL} \cite{CORAL}: Demonstrates magic-set style optimisations in a real database setting.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Installation}
+\begin{enumerate}[label=\arabic*.]
+  \item Clone the repository:
+\begin{lstlisting}[language=bash]
+git clone <repo-url>
+cd QueryBridge
+\end{lstlisting}
+  \item Create a virtual environment and install:
+\begin{lstlisting}[language=bash]
+python -m venv venv
+source venv/bin/activate      # Windows: venv\Scripts\activate
+pip install -e .
+\end{lstlisting}
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Usage}
+\subsection{Command-Line}
+\begin{lstlisting}[language=bash]
+python -m querybridge              # default demo
+python -m querybridge schema.gql query.gql --demand
+\end{lstlisting}
+
+\subsection{Library}
+\begin{lstlisting}[language=Python]
+from querybridge import translate_graphql_to_xsb
+
+code = translate_graphql_to_xsb("schema.gql", "query.gql",
+                                apply_demand=True)
+print(code)
+\end{lstlisting}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Complex Path Searching}
+GraphQL can traverse arbitrarily long edge chains—e.g.\ “all repositories
+reachable from a user via \texttt{starredBy} / \texttt{forkedFrom} up to depth 3.”
+These recursive patterns map neatly to Datalog, and QueryBridge can
+\emph{generate} the rules, but efficient execution still requires a
+recursion-aware SQL engine—something the ecosystem currently lacks.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{State of the Art}
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Project} & \textbf{Capabilities} \\
+\midrule
+\emph{Hasura}/\emph{PostGraphile} &
+Full GraphQL servers in front of Postgres—planning, auth, caching, live queries—yet the SQL generator is buried inside the server; no “give me SQL” API. \\ \addlinespace
+\emph{{graphene,strawberry}-sqlalchemy} &
+Maps SQLAlchemy models $\Rightarrow$ GraphQL types and runs through the ORM; never produces raw SQL text. \\ \addlinespace
+\emph{sgqlc-build-sqla} (prototype) &
+Creates SQLAlchemy models from a schema and helps construct queries, but still demands manual AST walking; not production-ready. \\ \addlinespace
+\emph{joernio/graphql-to-sql} (2019 demo) &
+Translator for a tiny GraphQL subset (no fragments, variables, nesting); unmaintained and outputs only naïve \texttt{SELECT}s. \\
+\bottomrule
+\end{tabularx}
+\caption{Why existing work cannot serve as a direct GraphQL-to-SQL translator.}
+\end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Implementation Status}
+QueryBridge v 0.3 can already take a GraphQL schema + query pair, compile it to naïve XSB Datalog, and then rewrite the program with classic Magic-Set demand transformation so that only facts relevant to the bound arguments reach the join—yielding visibly smaller rule sets and faster XSB execution in our unit tests. Each test directory under tests/ contains a schema, query, and ground-truth fact file; the runner generates two Datalog files (with and without demand), executes both under XSB, and asserts that the answer predicates idential, confirming that demand transformation preserves semantics even as it prunes intermediate relations. A separate “benchmark” target meant to time queries and count rule sizes is stubbed out because of the state-of-the-art tools available in python not returning proper SQL queries for complex graphql queries to benchmark against.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Future Work}
+\begin{itemize}[leftmargin=1.5em]
+  \item Integrate a cost model to decide when demand transformation is profitable.
+  \item Emit SQL for non-recursive fragments to enable hybrid SQL + Datalog back-ends.
+  \item Extend recursion support once a suitable GraphQL-to-SQL translator emerges.
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{Acknowledgements}
+Thanks to Prof.\ Yanhong Annie Liu for guidance and the GraphQL Foundation for
+\texttt{graphql-core}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliographystyle{plain}
+\begin{thebibliography}{10}\small
+
+\bibitem{DemandTransform}
+Y.~A. Liu, S.~D. Stoller, and T.~Teitelbaum.
+\newblock Graph queries through Datalog optimizations.
+\newblock In \emph{Proceedings of the 2010 ACM SIGMOD International Conference
+  on Management of Data}, 2010.
+  \url{https://doi.org/10.1145/1836089.1836093}.
+
+\bibitem{SIPSlides}
+P.~Brass.
+\newblock \emph{Magic Sets, SIP Strategies and Optimising Logic Programs}.
+\newblock Lecture slides, 2022.
+\newblock \url{https://users.informatik.uni-halle.de/~brass/lp22/print/cd_magic.pdf}.
+
+\bibitem{Hasura}
+Hasura~Inc.
+\newblock Hasura GraphQL engine.
+\newblock \url{https://hasura.io/graphql/}. Accessed 2025-04-18.
+
+\bibitem{XSB}
+The~XSB Project.
+\newblock The {XSB} logic programming and deductive database system.
+\newblock \url{https://xsb.sourceforge.io}. Accessed 2025-04-18.
+
+\bibitem{CORAL}
+R.~Ramakrishnan, A.~Silberschatz, and D.~Stuckey.
+\newblock The {CORAL} deductive database system.
+\newblock \emph{The VLDB Journal}, 1993.
+
+\end{thebibliography}
+
+\end{document}

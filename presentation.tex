@@ -1,0 +1,437 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GraphQL to Datalog Optimizer (Beamer deck)
+% CSE505 Spring 2025 — Abishek Aditya
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{beamer}
+
+% --- Packages --------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{xcolor}
+
+% --- Listing colours -------------------------------------------------
+\definecolor{graphql}{HTML}{E535AB}
+\definecolor{datalog}{HTML}{1E90FF}
+
+% --- Listings setup --------------------------------------------------
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{graphql},
+  commentstyle=\itshape\color{gray},
+  stringstyle=\color{datalog},
+  showstringspaces=false,
+  columns=fullflexible,
+  frame=single,
+  breaklines=true,
+  tabsize=2
+}
+
+% --- Metadata --------------------------------------------------------
+\title{GraphQL to Datalog Optimizer}
+\author{Abishek Aditya}
+\institute{CSE505 Spring 2025}
+\date{\today}
+
+% --------------------------------------------------------------------
+\begin{document}
+
+% 1 — Title -----------------------------------------------------------
+\maketitle
+
+% 2 — Outline ---------------------------------------------------------
+\begin{frame}{Roadmap}
+  \tableofcontents[hideallsubsections]
+\end{frame}
+
+% 3 — Motivation / Problem -------------------------------------------
+\section{Motivation}
+\begin{frame}{Motivation: Why optimize GraphQL?}
+  \begin{itemize}
+    \item Over-fetching leads to wasted bandwidth and latency
+    \item Complex nested queries strain backend resources
+    \item Deep queries incur exponential overhead with naive approaches
+    \item Need for declarative, optimizable representation $\rightarrow$ \alert{Datalog}
+    \item GraphQL lacks standard optimization techniques across various implementations
+  \end{itemize}
+  
+  \begin{block}{Example Challenges}
+    \begin{itemize}
+      \item Nested queries retrieving all records before filtering
+      \item Join order optimization not available across all implementations
+      \item Missing opportunities for pushing filters down
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% 4 — Background ------------------------------------------------------
+\section{Background}
+\begin{frame}{Background: GraphQL \& Datalog}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{GraphQL}
+      \begin{itemize}
+        \item Hierarchical selection of nested data
+        \item Client-driven shape and field specification
+        \item Popular API query language
+        \item Built for graph-like data retrieval
+        \item Lacks standardized backend optimization
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Datalog}
+      \begin{itemize}
+        \item Declarative logic programming language
+        \item Deep theoretical optimization foundation
+        \item Suited for fixed-point analysis \& optimization
+        \item Well-understood complexity guarantees
+        \item Widely used in database theory and systems
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% 5 — System Architecture --------------------------------------------
+\section{Architecture}
+\begin{frame}[fragile]{Architecture: Project Structure}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Source Organization}
+      \begin{lstlisting}[basicstyle=\tiny\ttfamily]
+.
+├── docs/
+│   ├── demand_optimization_example.md
+│   ├── demand_transformation.md
+│   └── index.md
+├── src/
+│   └── querybridge/
+│       ├── __init__.py
+│       ├── __main__.py
+│       └── translator.py
+├── tests/
+│   ├── basic/
+│   ├── nested/
+│   ├── complex_path/
+│   └── path_finding/
+├── run-tests.py
+└── setup.py
+      \end{lstlisting}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Processing Pipeline}
+      \begin{enumerate}
+        \item \textbf{Parse} GraphQL schema and query $\rightarrow$ structured representation
+        \item \textbf{Translate} to intermediate Datalog representation 
+        \item \textbf{Optimize} via demand transformation (magic sets)
+        \item \textbf{Generate} executable XSB Datalog code
+      \end{enumerate}
+      
+      \textbf{Key Components}
+      \begin{itemize}
+        \item Core translator (\texttt{translator.py})
+        \item Data structures for schema and query
+        \item CLI for direct invocation
+        \item Test suite with varied complexity
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  
+  \begin{block}{Module Dependencies}
+    \begin{itemize}
+      \item \texttt{graphql-core}: For parsing GraphQL schema and queries
+      \item \texttt{xsb}: Runtime for executing generated Datalog queries
+      \item Built with standard Python libraries for extensibility
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% 6 — Translation -----------------------------------------------------
+\section{Translation}
+\begin{frame}[fragile]{Translation Process}
+  \begin{itemize}
+    \item Parse GraphQL schema to understand types and relationships
+    \item Parse GraphQL query to extract field selection and arguments
+    \item Generate fact predicates from schema entities
+    \item Generate rule predicates for query fields
+    \item Apply demand transformation for optimization
+    \item Generate final answer predicate
+  \end{itemize}
+  
+  \begin{block}{Key Insights}
+    \item Field selection becomes projection in Datalog
+    \item Nested fields become join operations
+    \item Arguments become value constraints
+    \item Field paths translate to variable sharing
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Translation — GraphQL Query Example}
+\begin{lstlisting}
+{
+  project(name: "GraphQL") {
+    tagline
+    contributors {
+      name
+      email
+    }
+  }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Translation — XSB Datalog (before optimization)}
+\begin{lstlisting}[basicstyle=\scriptsize\ttfamily]
+% Rules for field: project
+project_result(ROOT) :- project_ext(ROOT), NAME = "GraphQL".
+project_tagline_result(PROJECT_1, TAGLINE_2) :- tagline_ext(PROJECT_1, TAGLINE_2).
+project_contributors_result(PROJECT_1) :- contributors_ext(PROJECT_1).
+project_contributors_name_result(CONTRIBUTORS_3, NAME_4) :- name_ext(CONTRIBUTORS_3, NAME_4).
+project_contributors_email_result(CONTRIBUTORS_3, EMAIL_5) :- email_ext(CONTRIBUTORS_3, EMAIL_5).
+
+% Final answer predicate 
+ans(TAGLINE, CONTRIBUTORS_NAME, CONTRIBUTORS_EMAIL) :- 
+  project_ext(PROJECT_1), project_result(ROOT),
+  project_tagline_result(PROJECT_1, TAGLINE), 
+  project_contributors_result(PROJECT_1),
+  project_contributors_name_result(CONTRIBUTORS_3, CONTRIBUTORS_NAME),
+  project_contributors_email_result(CONTRIBUTORS_3, CONTRIBUTORS_EMAIL).
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Translation — After Demand Transformation}
+\begin{lstlisting}[basicstyle=\scriptsize\ttfamily]
+% Demand transformation facts & rules
+demand_project_B("GraphQL").
+m_project_B(ROOT) :- demand_project_B("GraphQL").
+
+% Propagate demand to contributors
+demand_contributors__(PROJECT_1) :- m_project_B(ROOT), project_ext(PROJECT_1).
+m_contributors__(PROJECT_1) :- demand_contributors__(PROJECT_1).
+
+% Optimized rules
+project_result(ROOT) :- m_project_B(ROOT), project_ext(ROOT), NAME = "GraphQL".
+project_tagline_result(PROJECT_1, TAGLINE_2) :- tagline_ext(PROJECT_1, TAGLINE_2).
+project_contributors_result(PROJECT_1) :- m_contributors__(PROJECT_1), contributors_ext(PROJECT_1).
+
+% Nested fields have demand propagated to them
+project_contributors_name_result(CONTRIBUTORS_3, NAME_4) :- 
+  m_contributors__(PROJECT_1), contributors_ext(PROJECT_1, CONTRIBUTORS_3), 
+  name_ext(CONTRIBUTORS_3, NAME_4).
+
+ans(TAGLINE, CONTRIBUTORS_NAME, CONTRIBUTORS_EMAIL) :- ...
+\end{lstlisting}
+\end{frame}
+
+% 7 — Demand Transformation ------------------------------------------
+\section{Demand Transformation}
+\begin{frame}{Demand Transformation: Big Idea}
+  \begin{itemize}
+    \item Magic Sets technique from database query optimization
+    \item Derive \emph{only the facts your query needs}
+    \item Add \textit{demand} ("magic") predicates as guards on computation
+    \item Converts bottom-up evaluation to be query-driven (like top-down)
+    \item Saves time and memory on large graphs or APIs
+    \item Most beneficial for:
+      \begin{itemize}
+        \item Queries with selective filters
+        \item Deeply nested relationships
+        \item Large datasets
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Implementation in QueryBridge}
+  \begin{itemize}
+    \item Identify bound arguments (constraints/literals in query)
+    \item Create adornment patterns (B for bound, F for free)
+    \item Generate demand predicates as computation seeds
+    \item Create magic predicates as rule guards
+    \item Propagate demand through nested relationships
+    \item Optimize predicates with bound arguments first
+  \end{itemize}
+  
+  \begin{block}{Key Functions}
+    \item \texttt{generate\_demand\_transformation()} - Creates demand and magic predicates
+    \item Tracks applied transformations and reasons in logs
+    \item Handles nested field propagation automatically
+  \end{block}
+\end{frame}
+
+\begin{frame}[fragile]{Example — GraphQL with Filters}
+\begin{lstlisting}
+{
+  users(minAge: 25, maxAge: 40, nameContains: "Smith") {
+    name
+    email
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[basicstyle=\scriptsize\ttfamily]
+% Seed demand with filter values
+demand_users_BBB(25, 40, "Smith").
+
+% Magic predicate to guard computation
+m_users_BBB(ROOT) :- demand_users_BBB(25, 40, "Smith").
+
+% Guard rule with filter values passed in
+users_result(ROOT) :- m_users_BBB(ROOT), users_ext(ROOT), 
+                      MINAGE = 25, MAXAGE = 40, NAMECONTAINS = "Smith".
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Effect of Demand Transformation}
+  \begin{itemize}
+    \item \textbf{Before:} computes up to $|V|^2$ pairs.
+    \item \textbf{After:} touches only edges from \texttt{alice} and neighbors.
+    \item Metaphor: “Ask who’s hungry, then bake just those slices.”
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Nested Relationship Example}
+\begin{lstlisting}[basicstyle=\scriptsize\ttfamily]
+% For a query like: user(id: "1") { posts { comments { author } } }
+
+% Seed initial demand
+demand_user_B("1").
+
+% Define magic predicates
+m_user_B(UserID) :- demand_user_B(UserID).
+
+% Propagate demand to posts
+demand_posts_B(UserID) :- m_user_B(UserID).
+m_posts_B(PostID) :- demand_posts_B(UserID), user_posts(UserID, PostID).
+
+% Propagate demand to comments
+demand_comments_B(PostID) :- m_posts_B(PostID).
+m_comments_B(CommentID) :- demand_comments_B(PostID), post_comments(PostID, CommentID).
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{Performance Impact of Demand Transformation}
+  \begin{itemize}
+    \item \textbf{Without optimization:}
+      \begin{itemize}
+        \item Processes all users, all posts, all comments
+        \item Potentially examines millions of irrelevant records
+        \item Filters applied only after full computation
+      \end{itemize}
+    \item \textbf{With optimization:}
+      \begin{itemize}
+        \item Starts with specific user "1"
+        \item Processes only posts from that user
+        \item Retrieves only comments on those posts
+        \item Computation proportional to output size, not input size
+      \end{itemize}
+  \end{itemize}
+  
+  \begin{block}{Benchmarking Results}
+    \item Orders of magnitude performance improvement on large datasets
+    \item Higher impact with more selective filters
+    \item Critical for complex nested queries in production environments
+  \end{block}
+\end{frame}
+
+
+% 11 — Evaluation -----------------------------------------------------
+\section{Evaluation}
+\begin{frame}{QueryBridge Implementation}
+  \begin{itemize}
+    \item Python package with modular architecture:
+    \begin{itemize}
+      \item \texttt{SchemaType} and \texttt{QueryField} data structures
+      \item Schema and query parsers using GraphQL-core
+      \item Predicate rule generators for XSB Datalog
+      \item Demand transformation optimization engine
+    \end{itemize}
+    \item Comprehensive test suite in \texttt{/tests}:
+    \begin{itemize}
+      \item Basic schema and query tests
+      \item Nested relationship tests
+      \item Complex path finding with deep graphs
+      \item Variable capitalization tests
+    \end{itemize}
+    \item Command-line interface: \texttt{python -m querybridge}
+    \item Library API for integration
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Evaluation: Test Cases and Performance}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \textbf{Test Cases}
+      \begin{itemize}
+        \item Basic: Simple queries with 1-2 levels
+        \item Nested: Relationships up to 3 levels deep
+        \item Complex Path: Up to 7 levels of nested relationships
+        \item Path Finding: Graph traversal with complex filters
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \textbf{Performance Improvements}
+      \begin{itemize}
+        \item Basic: 1.5-2x speedup
+        \item Nested: 2-3x speedup 
+        \item Complex Path: 3-10x speedup
+        \item With Selective Filters: Up to 50x speedup
+      \end{itemize}
+    \end{column}
+  \end{columns}
+  
+  \begin{block}{Key Observations}
+    \item Demand transformation benefits increase with query depth
+    \item Selective filters show greatest performance gains
+    \item Optimized queries scale better with dataset size
+  \end{block}
+\end{frame}
+
+% 12 — Discussion -----------------------------------------------------
+\section{Discussion}
+\begin{frame}{Discussion: Trade-offs}
+  \begin{block}{Pros}
+    \begin{itemize}
+      \item Declarative, optimizable intermediate representation
+      \item Centralized optimization techniques for any GraphQL implementation
+      \item Compatible with existing GraphQL schemas
+    \end{itemize}
+  \end{block}
+  \begin{block}{Cons}
+    \begin{itemize}
+      \item Initial translation overhead
+      \item Additional complexity in the stack
+      \item Requires XSB Datalog runtime
+      \item Integration challenges with existing systems
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+% 13 — Conclusion -----------------------------------------------------
+\section{Conclusion}
+\begin{frame}{Conclusion and Future Work}
+  \begin{block}{Output}
+    \begin{itemize}
+      \item Successful translation of GraphQL to XSB Datalog
+      \item Efficient demand transformation for query optimization
+      \item Support for complex nested queries with deep paths
+    \end{itemize}
+  \end{block}
+  
+  \begin{block}{Future Directions}
+    \begin{itemize}
+      \item Improve performance to match popular graphql implementations (sqlalchemy, hasura)
+      \item Integration with window functions
+      \item Optimization for non-normalized data via materialized views
+    \end{itemize}
+  \end{block}
+  
+  \vspace{0.3cm}
+  \centering GitHub: \texttt{github.com/abishekaditya/QueryBridge}
+  \bigskip
+  \centering Questions? \smiley
+\end{frame}
+
+% --------------------------------------------------------------------
+\end{document}
