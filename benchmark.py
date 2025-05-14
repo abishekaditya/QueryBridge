@@ -261,45 +261,56 @@ def run_xsb_variant(
     facts_path: Path,
     schema_path: Path,
     query_path: Path,
+    runs: int,
     apply_demand: bool,
 ) -> Tuple[int, float, float, float, List[str]]:
     """
-    Generate XSB code, run it `runs` times, return
+    Generate XSB code, write a Prolog driver that consults facts and the
+    generated rules, runs `ans(...)` once, and captures timing. Returns:
     (row_count, min_time, avg_time, max_time, output_lines)
     """
     code = translate_graphql_to_xsb(
         str(schema_path), str(query_path), apply_demand
     )
-    driver_name = facts_path.parent / f"run_{'demand' if apply_demand else 'nodemand'}.P"
-    with open(driver_name, "w") as f:
-        f.write(f":- ['{facts_path.name}'].\n\n")
-        f.write(code)
-        f.write("\n% execute ans...\n")
-        f.write("run_q :- ans(X), write(X), nl, fail.\n")
-        f.write("run_q :- write('DONE'), nl.\n")
-        f.write(":- run_q, halt.\n")
 
-    # execute
-    runs = int(os.getenv("BENCH_RUNS", "1"))
+    # Compute ans arity
+    import re
+    m = re.search(r"^ans\(([^)]*)\)", code, re.MULTILINE)
+    if m:
+        args = m.group(1).strip()
+        arity = 0 if not args else args.count(',') + 1
+    else:
+        arity = 0
+
+    driver_name = facts_path.parent / f"run_{'demand' if apply_demand else 'nodemand'}.P"
+    ans_unders = ','.join('_' for _ in range(arity))
+    ans_directive = f"\n:- ans({ans_unders}), halt."
+
+    with open(driver_name, 'w') as drv:
+        drv.write(f":- ['{facts_path.name}'].")
+        drv.write(code)
+        drv.write("")
+        drv.write(ans_directive)
+
     times: List[float] = []
     output_lines: List[str] = []
-
     for _ in range(runs):
-        start = time.perf_counter()
+        t0 = time.perf_counter()
         proc = subprocess.run(
-            [xsb_path, "-e", f"['{driver_name.name}']."],
+            [xsb_path, '-e', f"['{driver_name.name}']."],
             cwd=facts_path.parent,
             capture_output=True,
             text=True,
         )
-        elapsed = time.perf_counter() - start
+        t1 = time.perf_counter()
         if proc.returncode != 0:
-            raise RuntimeError(proc.stderr)
-        times.append(elapsed)
-        for line in proc.stdout.splitlines():
-            if line != "DONE":
-                output_lines.append(line)
+            raise RuntimeError(f"XSB error: {proc.stderr}")
+        times.append(t1 - t0)
+        for ln in proc.stdout.splitlines():
+            if ln and ln.strip() != 'DONE':
+                output_lines.append(ln.strip())
 
+    driver_name.unlink()
     row_count = len(output_lines)
     return row_count, min(times), statistics.mean(times), max(times), output_lines
 
@@ -332,6 +343,7 @@ def bench_folder(
         facts_path,
         folder / "schema.graphql",
         folder / "query.graphql",
+        runs,
         False,
     )
     print(
@@ -344,6 +356,7 @@ def bench_folder(
         facts_path,
         folder / "schema.graphql",
         folder / "query.graphql",
+        runs,
         True,
     )
     print(
