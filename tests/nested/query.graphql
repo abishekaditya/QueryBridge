@@ -1,0 +1,19 @@
+# Nested query to test demand transformation
+query {
+  person(id: "1") {
+    name
+    email
+    friends {
+      name
+    }
+    posts {
+      title
+      comments {
+        text
+        author {
+          name
+        }
+      }
+    }
+  }
+}

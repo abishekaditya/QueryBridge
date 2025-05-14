@@ -1,0 +1,19 @@
+# Basic GraphQL schema for QueryBridge testing
+
+type User {
+  id: ID!
+  name: String!
+  email: String
+}
+
+type Project {
+  id: ID!
+  name: String!
+  tagline: String
+  contributors: [User!]
+}
+
+type Query {
+  user(id: ID!): User
+  project(name: String!): Project
+}

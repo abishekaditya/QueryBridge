@@ -1,0 +1,6 @@
+# Basic GraphQL query for testing
+query {
+  project(name: "GraphQL") {
+    tagline
+  }
+}

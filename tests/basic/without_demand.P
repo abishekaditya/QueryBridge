@@ -1,0 +1,11 @@
+% XSB Datalog generated from GraphQL query with root fields: project
+% Without demand transformation
+
+% Query field rules
+
+% Rules for field: project
+project_result(ROOT) :- project_ext(ROOT), NAME = "GraphQL".
+project_tagline_result(PROJECT_1, TAGLINE_2) :- tagline_ext(PROJECT_1, TAGLINE_2).
+
+% Final answer predicate combining all query results
+ans(project_tagline) :- project_ext(PROJECT_1), project_result(ROOT), project_tagline_result(PROJECT_1, project_tagline), project_tagline_result(PROJECT_1, TAGLINE_2).

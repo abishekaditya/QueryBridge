@@ -1,0 +1,20 @@
+% XSB Datalog generated from GraphQL query with root fields: person
+% Without demand transformation
+
+% Query field rules
+
+% Rules for field: person
+person_result(ROOT) :- person_ext(ROOT), ID = "1".
+person_name_result(PERSON_1, NAME_2) :- name_ext(PERSON_1, NAME_2).
+person_email_result(PERSON_1, EMAIL_3) :- email_ext(PERSON_1, EMAIL_3).
+person_friends_result(PERSON_1) :- friends_ext(PERSON_1).
+person_friends_name_result(FRIENDS_4, NAME_5) :- name_ext(FRIENDS_4, NAME_5).
+person_posts_result(PERSON_1) :- posts_ext(PERSON_1).
+person_posts_title_result(POSTS_6, TITLE_7) :- title_ext(POSTS_6, TITLE_7).
+person_posts_comments_result(POSTS_6) :- comments_ext(POSTS_6).
+person_posts_comments_text_result(COMMENTS_8, TEXT_9) :- text_ext(COMMENTS_8, TEXT_9).
+person_posts_comments_author_result(COMMENTS_8) :- author_ext(COMMENTS_8).
+person_posts_comments_author_name_result(AUTHOR_10, NAME_11) :- name_ext(AUTHOR_10, NAME_11).
+
+% Final answer predicate combining all query results
+ans(person_name, person_email, person_friends_name, person_posts_title, person_posts_comments_text, person_posts_comments_author_name) :- person_ext(PERSON_1), person_result(ROOT), person_name_result(PERSON_1, person_name), person_email_result(PERSON_1, person_email), person_friends_result(PERSON_1), person_friends_name_result(FRIENDS_4, person_friends_name), person_posts_result(PERSON_1), person_posts_title_result(POSTS_6, person_posts_title), person_posts_comments_result(POSTS_6), person_posts_comments_text_result(COMMENTS_8, person_posts_comments_text), person_posts_comments_author_result(COMMENTS_8), person_posts_comments_author_name_result(AUTHOR_10, person_posts_comments_author_name), person_name_result(PERSON_1, NAME_2), person_email_result(PERSON_1, EMAIL_3), person_friends_result(PERSON_1, FRIENDS_4), person_posts_result(PERSON_1, POSTS_6).

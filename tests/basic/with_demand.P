@@ -1,0 +1,26 @@
+% XSB Datalog generated from GraphQL query with root fields: project
+% With demand transformation
+
+% Demand transformation facts and rules
+% Seed demand with bound arguments for project
+demand_project_B("GraphQL").
+
+% Magic predicate for project
+m_project_B(ROOT) :- demand_project_B("GraphQL").
+% Propagate demand to tagline fields
+demand_tagline__(PROJECT_1) :- m_tagline_ext(PROJECT_1).
+% Magic predicate for tagline
+m_tagline__(PROJECT_1) :- demand_tagline__(PROJECT_1).
+% Propagate demand from project to its fields
+
+% Query field rules
+
+% Rules for field: project
+project_result(ROOT) :- m_project_B(ROOT), project_ext(ROOT), NAME = "GraphQL".
+project_tagline_result(PROJECT_1, TAGLINE_2) :- tagline_ext(PROJECT_1, TAGLINE_2).
+
+% Final answer predicate combining all query results
+ans(project_tagline) :- project_ext(PROJECT_1), project_result(ROOT), project_tagline_result(PROJECT_1, project_tagline), project_tagline_result(PROJECT_1, TAGLINE_2).
+
+% Demand transformation summary
+% NOTE: Applied demand transformation 'demand_project_B' (B) because it has 1 bound argument(s)

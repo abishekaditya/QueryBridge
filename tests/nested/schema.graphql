@@ -1,0 +1,28 @@
+# Nested objects schema for testing demand transformation
+
+type Person {
+  id: ID!
+  name: String!
+  email: String
+  friends: [Person!]
+  posts: [Post!]
+}
+
+type Post {
+  id: ID!
+  title: String!
+  content: String
+  author: Person!
+  comments: [Comment!]
+}
+
+type Comment {
+  id: ID!
+  text: String!
+  author: Person!
+}
+
+type Query {
+  person(id: ID!): Person
+  post(id: ID!): Post
+}

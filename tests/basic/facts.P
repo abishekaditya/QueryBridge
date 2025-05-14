@@ -1,0 +1,21 @@
+% Basic facts for QueryBridge testing
+
+% Project facts
+project_ext(root).
+project_ext("GraphQL").
+
+% Project fields
+name_ext("GraphQL", "GraphQL").
+tagline_ext("GraphQL", "A query language for APIs").
+
+% User facts
+user_ext(root, "1").
+user_ext("1").
+
+% User fields
+id_ext("1", "1").
+name_ext("1", "Alice").
+email_ext("1", "alice@example.com").
+
+% Relationships
+contributors_ext("GraphQL", "1").

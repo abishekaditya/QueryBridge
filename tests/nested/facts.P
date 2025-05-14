@@ -1,0 +1,73 @@
+% Facts for nested test case
+
+% Root query access
+person_ext(root, "1").
+post_ext(root, "101").
+
+% Person facts
+person_ext("1").
+id_ext("1", "1").
+name_ext("1", "Alice").
+email_ext("1", "alice@example.com").
+
+person_ext("2").
+id_ext("2", "2").
+name_ext("2", "Bob").
+email_ext("2", "bob@example.com").
+
+person_ext("3").
+id_ext("3", "3").
+name_ext("3", "Carol").
+email_ext("3", "carol@example.com").
+
+% Friendship relationships
+friends_ext("1", "2").
+friends_ext("1", "3").
+friends_ext("2", "1").
+friends_ext("3", "1").
+friends_ext("2", "3").
+
+% Post facts
+post_ext("101").
+id_ext("101", "101").
+title_ext("101", "GraphQL Introduction").
+content_ext("101", "GraphQL is a query language for APIs...").
+author_ext("101", "1").
+
+post_ext("102").
+id_ext("102", "102").
+title_ext("102", "Datalog and GraphQL").
+content_ext("102", "Combining Datalog with GraphQL...").
+author_ext("102", "1").
+
+post_ext("103").
+id_ext("103", "103").
+title_ext("103", "Database Systems").
+content_ext("103", "An overview of database concepts...").
+author_ext("103", "2").
+
+% Posts relationship
+posts_ext("1", "101").
+posts_ext("1", "102").
+posts_ext("2", "103").
+
+% Comment facts
+comment_ext("201").
+id_ext("201", "201").
+text_ext("201", "Great article!").
+author_ext("201", "2").
+
+comment_ext("202").
+id_ext("202", "202").
+text_ext("202", "I found this very helpful.").
+author_ext("202", "3").
+
+comment_ext("203").
+id_ext("203", "203").
+text_ext("203", "Looking forward to more.").
+author_ext("203", "2").
+
+% Comments relationship
+comments_ext("101", "201").
+comments_ext("101", "202").
+comments_ext("102", "203").

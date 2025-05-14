@@ -1,0 +1,79 @@
+% XSB Datalog generated from GraphQL query with root fields: person
+% With demand transformation
+
+% Demand transformation facts and rules
+% Seed demand with bound arguments for person
+demand_person_B("1").
+
+% Magic predicate for person
+m_person_B(ROOT) :- demand_person_B("1").
+% Propagate demand to name fields
+demand_name__(PERSON_1) :- m_name_ext(PERSON_1).
+% Magic predicate for name
+m_name__(PERSON_1) :- demand_name__(PERSON_1).
+% Propagate demand from person to its fields
+% Propagate demand to email fields
+demand_email__(PERSON_1) :- m_email_ext(PERSON_1).
+% Magic predicate for email
+m_email__(PERSON_1) :- demand_email__(PERSON_1).
+% Propagate demand to friends fields
+demand_friends__(PERSON_1) :- m_friends_ext(PERSON_1).
+% Magic predicate for friends
+m_friends__(PERSON_1) :- demand_friends__(PERSON_1).
+% Propagate demand to name fields
+demand_name__(FRIENDS_4) :- m_name_ext(FRIENDS_4).
+% Magic predicate for name
+m_name__(FRIENDS_4) :- demand_name__(FRIENDS_4).
+% Propagate demand from friends to its fields
+demand_friends__(PERSON_1) :- m_person_B(ROOT), person_ext(ROOT, PERSON_1).
+% Propagate demand to posts fields
+demand_posts__(PERSON_1) :- m_posts_ext(PERSON_1).
+% Magic predicate for posts
+m_posts__(PERSON_1) :- demand_posts__(PERSON_1).
+% Propagate demand to title fields
+demand_title__(POSTS_6) :- m_title_ext(POSTS_6).
+% Magic predicate for title
+m_title__(POSTS_6) :- demand_title__(POSTS_6).
+% Propagate demand from posts to its fields
+% Propagate demand to comments fields
+demand_comments__(POSTS_6) :- m_comments_ext(POSTS_6).
+% Magic predicate for comments
+m_comments__(POSTS_6) :- demand_comments__(POSTS_6).
+% Propagate demand to text fields
+demand_text__(COMMENTS_8) :- m_text_ext(COMMENTS_8).
+% Magic predicate for text
+m_text__(COMMENTS_8) :- demand_text__(COMMENTS_8).
+% Propagate demand from comments to its fields
+% Propagate demand to author fields
+demand_author__(COMMENTS_8) :- m_author_ext(COMMENTS_8).
+% Magic predicate for author
+m_author__(COMMENTS_8) :- demand_author__(COMMENTS_8).
+% Propagate demand to name fields
+demand_name__(AUTHOR_10) :- m_name_ext(AUTHOR_10).
+% Magic predicate for name
+m_name__(AUTHOR_10) :- demand_name__(AUTHOR_10).
+% Propagate demand from author to its fields
+demand_author__(COMMENTS_8) :- m_comments__(POSTS_6), comments_ext(POSTS_6, COMMENTS_8).
+demand_comments__(POSTS_6) :- m_posts__(PERSON_1), posts_ext(PERSON_1, POSTS_6).
+demand_posts__(PERSON_1) :- m_person_B(ROOT), person_ext(ROOT, PERSON_1).
+
+% Query field rules
+
+% Rules for field: person
+person_result(ROOT) :- m_person_B(ROOT), person_ext(ROOT), ID = "1".
+person_name_result(PERSON_1, NAME_2) :- name_ext(PERSON_1, NAME_2).
+person_email_result(PERSON_1, EMAIL_3) :- email_ext(PERSON_1, EMAIL_3).
+person_friends_result(PERSON_1) :- friends_ext(PERSON_1).
+person_friends_name_result(FRIENDS_4, NAME_5) :- name_ext(FRIENDS_4, NAME_5).
+person_posts_result(PERSON_1) :- posts_ext(PERSON_1).
+person_posts_title_result(POSTS_6, TITLE_7) :- title_ext(POSTS_6, TITLE_7).
+person_posts_comments_result(POSTS_6) :- comments_ext(POSTS_6).
+person_posts_comments_text_result(COMMENTS_8, TEXT_9) :- text_ext(COMMENTS_8, TEXT_9).
+person_posts_comments_author_result(COMMENTS_8) :- author_ext(COMMENTS_8).
+person_posts_comments_author_name_result(AUTHOR_10, NAME_11) :- name_ext(AUTHOR_10, NAME_11).
+
+% Final answer predicate combining all query results
+ans(person_name, person_email, person_friends_name, person_posts_title, person_posts_comments_text, person_posts_comments_author_name) :- person_ext(PERSON_1), person_result(ROOT), person_name_result(PERSON_1, person_name), person_email_result(PERSON_1, person_email), person_friends_result(PERSON_1), person_friends_name_result(FRIENDS_4, person_friends_name), person_posts_result(PERSON_1), person_posts_title_result(POSTS_6, person_posts_title), person_posts_comments_result(POSTS_6), person_posts_comments_text_result(COMMENTS_8, person_posts_comments_text), person_posts_comments_author_result(COMMENTS_8), person_posts_comments_author_name_result(AUTHOR_10, person_posts_comments_author_name), person_name_result(PERSON_1, NAME_2), person_email_result(PERSON_1, EMAIL_3), person_friends_result(PERSON_1, FRIENDS_4), person_posts_result(PERSON_1, POSTS_6).
+
+% Demand transformation summary
+% NOTE: Applied demand transformation 'demand_person_B' (B) because it has 1 bound argument(s)
