@@ -363,33 +363,6 @@ m_comments_B(CommentID) :- demand_comments_B(PostID), post_comments(PostID, Comm
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Evaluation: Test Cases and Performance}
-  \begin{columns}[T]
-    \begin{column}{0.48\textwidth}
-      \textbf{Test Cases}
-      \begin{itemize}
-        \item Basic: Simple queries with 1-2 levels
-        \item Nested: Relationships up to 3 levels deep
-        \item Path Finding: Graph traversal with complex filters
-      \end{itemize}
-    \end{column}
-    \begin{column}{0.48\textwidth}
-      \textbf{Theoretical Performance Improvements}
-      \begin{itemize}
-            \item Very complex path searching
-            \item Large data sets (> 10,000 facts)
-            \item Work in Progress
-      \end{itemize}
-    \end{column}
-  \end{columns}
-  
-  \begin{block}{Key Observations}
-    \item Demand transformation benefits increase with query depth
-    \item Selective filters show greatest performance gains
-    \item Optimized queries scale better with dataset size
-  \end{block}
-\end{frame}
-
 % 12 — Discussion -----------------------------------------------------
 \section{Discussion}
 \begin{frame}{Discussion: Trade-offs}
