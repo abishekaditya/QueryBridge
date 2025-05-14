@@ -459,7 +459,6 @@ def generate_predicate_rules(field: QueryField, predicates: List[str], rules: Li
     for arg_name, arg_value in field.arguments:
         arg_var = f"{arg_name.upper()}"
         arg_vars.append((arg_var, arg_value))
-    print("DDDDDD: ", path, pred_name, field )
     # Generate the predicate signature based on whether it's a scalar or object
     if field.is_scalar:
         pred_signature = f"{pred_name}({field.parent_var}, {field.child_var})"

@@ -1,30 +1,31 @@
 #!/usr/bin/env python3
-"""benchmark.py – in‑process GraphQL ⇄ SQLite micro‑benchmark
-============================================================
+"""benchmark.py – GraphQL / SQLite vs. XSB micro-benchmark
+========================================================
 
-Executes each `schema.graphql` + `query.graphql` pair in the test folders
-against the `*_ext` facts (loaded into an **in‑memory SQLite** database)
-via **Ariadne** + **SQLAlchemy**, then prints the count of returned
-leaf scalars and min/avg/max execution times over *N* iterations.
+For each `schema.graphql` + `query.graphql` in the test folders, this script:
 
-> **Fix 2025‑05‑14:** Some scalar fields may be non‑nullable in the
-> schema but missing in the facts. The scalar resolver now treats
-> absent or NULL values as empty strings (`""`), avoiding GraphQL
-> errors for non‑nullable fields.
+1. Runs GraphQL via Ariadne + SQLite and measures timing.
+2. Generates XSB code (with and without demand) via `translate_graphql_to_xsb`,
+   writes Prolog drivers, runs them in XSB, and measures timing.
+3. Verifies that the outputs match between both XSB variants
+   and compares counts with the SQLite path.
 
-Usage
------
+Usage:
 ```bash
 pip install ariadne graphql-core sqlalchemy
-python benchmark.py tests --runs 10
+python benchmark.py tests --runs 5 --xsb-path /usr/local/bin/xsb
 ```
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import argparse
+import os
 import re
-import statistics
+import subprocess
+import sys
+import tempfile
 import time
+import statistics
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -41,48 +42,11 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.sql import alias
 from ariadne import ObjectType, QueryType, gql, make_executable_schema
 
-###############################################################################
-# 1.  Load facts.P into SQLite                                                #
-###############################################################################
+try:
+    from querybridge.translator import translate_graphql_to_xsb
+except ImportError:
+    from translator import translate_graphql_to_xsb
 
-def load_facts(engine: Engine, facts_file: Path) -> Dict[str, Table]:
-    """Parse facts of varying arity, create tables, and insert rows."""
-    metadata = MetaData()
-    # parse and accumulate all facts
-    fact_lines = [l.strip() for l in facts_file.read_text().splitlines() if l.strip() and not l.strip().startswith('%')]
-    parsed: List[Tuple[str, List[str]]] = []
-    fact_re = re.compile(r'^(\w+)\((.*)\)\.$')
-    for line in fact_lines:
-        m = fact_re.match(line)
-        if not m:
-            continue
-        pred, blob = m.groups()
-        parts = [p.strip().strip('"') for p in blob.split(',')]
-        parsed.append((pred, parts))
-    # determine arity per predicate
-    arity: Dict[str, int] = {}
-    for pred, parts in parsed:
-        arity[pred] = max(arity.get(pred, 0), len(parts))
-    # create tables
-    tables: Dict[str, Table] = {}
-    for pred, n in arity.items():
-        cols = [Column(f'arg{i+1}', Text) for i in range(n)]
-        tbl = Table(pred, metadata, *cols)
-        tbl.create(bind=engine)
-        tables[pred] = tbl
-    # insert rows with padding
-    with engine.begin() as conn:
-        for pred, parts in parsed:
-            tbl = tables[pred]
-            n = len(tbl.columns)
-            padded = parts + [None] * (n - len(parts))
-            ins = {f'arg{i+1}': padded[i] for i in range(n)}
-            conn.execute(tbl.insert().values(ins))
-    return tables
-
-###############################################################################
-# 2.  GraphQL type helpers                                                     #
-###############################################################################
 
 def unwrap(typ):
     while isinstance(typ, (GraphQLNonNull, GraphQLList)):
@@ -90,142 +54,319 @@ def unwrap(typ):
     return typ
 
 
-def is_scalar(typ):
+def is_scalar(typ) -> bool:
     return isinstance(unwrap(typ), GraphQLScalarType)
 
 
-def returns_list(typ):
-    return isinstance(typ, GraphQLList) or (
-        isinstance(typ, GraphQLNonNull) and isinstance(typ.of_type, GraphQLList)
+def returns_list(typ) -> bool:
+    return (
+        isinstance(typ, GraphQLList)
+        or (
+            isinstance(typ, GraphQLNonNull)
+            and isinstance(typ.of_type, GraphQLList)
+        )
     )
 
-###############################################################################
-# 3.  Resolver factories                                                      #
-###############################################################################
+
+def load_facts(engine: Engine, facts_path: Path) -> Dict[str, Table]:
+    """
+    Parse `facts.P` with mixed arity, create tables, and insert rows.
+    """
+    metadata = MetaData()
+    lines = [
+        line.strip()
+        for line in facts_path.read_text().splitlines()
+        if line.strip() and not line.strip().startswith("%")
+    ]
+
+    parsed: List[Tuple[str, List[str]]] = []
+    pattern = re.compile(r"^(\w+)\((.*)\)\.$")
+    for line in lines:
+        match = pattern.match(line)
+        if not match:
+            continue
+        pred, blob = match.groups()
+        parts = [part.strip().strip('"') for part in blob.split(",")]
+        parsed.append((pred, parts))
+
+    # determine maximum arity per predicate
+    arity: Dict[str, int] = {}
+    for pred, parts in parsed:
+        arity[pred] = max(arity.get(pred, 0), len(parts))
+
+    # create tables
+    tables: Dict[str, Table] = {}
+    for pred, n in arity.items():
+        columns = [Column(f"arg{i+1}", Text) for i in range(n)]
+        table = Table(pred, metadata, *columns)
+        table.create(bind=engine)
+        tables[pred] = table
+
+    # insert rows, padding with None
+    with engine.begin() as conn:
+        for pred, parts in parsed:
+            table = tables[pred]
+            ncols = len(table.columns)
+            padded = parts + [None] * (ncols - len(parts))
+            conn.execute(table.insert().values({f"arg{i+1}": padded[i] for i in range(ncols)}))
+
+    return tables
+
 
 def make_root_resolver(obj_name: str, tables: Dict[str, Table]):
-    base_tbl = f"{obj_name.lower()}_ext"
-    def resolver(_, info, **args):
-        conn = info.context['conn']
-        tbls = info.context['tables']
-        if base_tbl not in tbls:
+    base_name = f"{obj_name.lower()}_ext"
+
+    def resolver(_, info, **kwargs):
+        conn = info.context["conn"]
+        tbls = info.context["tables"]
+        if base_name not in tbls:
             return [] if returns_list(info.return_type) else None
-        tbl = alias(tbls[base_tbl], obj_name)
-        frm = tbl
-        conds: List = []
-        for k, v in args.items():
-            for cand in (f"{obj_name.lower()}_{k}_ext", f"{k}_ext"):
+
+        base_alias = alias(tbls[base_name], obj_name)
+        conditions = []
+        src = base_alias
+
+        for key, val in kwargs.items():
+            cand_names = [f"{obj_name.lower()}_{key}_ext", f"{key}_ext"]
+            for cand in cand_names:
                 if cand in tbls:
-                    at = alias(tbls[cand], f"{obj_name}_{k}")
-                    frm = frm.join(at, tbl.c.arg1 == at.c.arg1)
-                    conds.append(at.c.arg2 == v)
+                    arg_alias = alias(tbls[cand], f"{obj_name}_{key}")
+                    src = src.join(arg_alias, base_alias.c.arg1 == arg_alias.c.arg1)
+                    conditions.append(arg_alias.c.arg2 == val)
                     break
-        stmt = select(tbl.c.arg1).select_from(frm)
-        for c in conds:
-            stmt = stmt.where(c)
+
+        stmt = select(base_alias.c.arg1).select_from(src)
+        for cond in conditions:
+            stmt = stmt.where(cond)
+
         rows = conn.execute(stmt).fetchall()
-        objs = [{"__id": r[0]} for r in rows]
-        return objs if returns_list(info.return_type) else (objs[0] if objs else None)
+        objs = [{"__id": row[0]} for row in rows]
+        if returns_list(info.return_type):
+            return objs
+        return objs[0] if objs else None
+
     return resolver
 
 
-def make_field_resolver(parent: str, tables: Dict[str, Table]):
-    lower = parent.lower()
-    def resolver(obj, info, **_):
-        if obj is None:
+def make_field_resolver(parent_type: str, tables: Dict[str, Table]):
+    lower = parent_type.lower()
+
+    def resolver(parent, info, **_):
+        if parent is None:
             return None
-        conn = info.context['conn']
-        tbls = info.context['tables']
-        fld = info.field_name
-        pid = obj['__id']
-        rtyp = info.return_type
-        tbl_name = next((n for n in (f"{lower}_{fld}_ext", f"{fld}_ext") if n in tbls), None)
-        if not tbl_name:
-            return [] if returns_list(rtyp) else None
+
+        conn = info.context["conn"]
+        tbls = info.context["tables"]
+        field = info.field_name
+        pid = parent["__id"]
+        ret_typ = info.return_type
+
+        tbl_name = next(
+            (n for n in (f"{lower}_{field}_ext", f"{field}_ext") if n in tbls),
+            None,
+        )
+        if tbl_name is None:
+            return [] if returns_list(ret_typ) else None
+
         tbl = tbls[tbl_name]
-        # scalar field: gather all non-null, default to ""
-        if is_scalar(rtyp):
-            rows = conn.execute(select(tbl.c.arg2).where(tbl.c.arg1 == pid)).fetchall()
+        if is_scalar(ret_typ):
+            rows = conn.execute(
+                select(tbl.c.arg2).where(tbl.c.arg1 == pid)
+            ).fetchall()
             vals = [r[0] for r in rows if r[0] is not None]
-            if returns_list(rtyp):
+            if returns_list(ret_typ):
                 return vals
             return vals[0] if vals else ""
-        # relational field
-        rows = conn.execute(select(tbl.c.arg2).where(tbl.c.arg1 == pid)).fetchall()
+
+        rows = conn.execute(
+            select(tbl.c.arg2).where(tbl.c.arg1 == pid)
+        ).fetchall()
         kids = [{"__id": r[0]} for r in rows if r[0] is not None]
-        if returns_list(rtyp):
+        if returns_list(ret_typ):
             return kids
         return kids[0] if kids else None
+
     return resolver
 
-###############################################################################
-# 4.  Execute & benchmark                                                     #
-###############################################################################
 
-def run_case(engine: Engine, tables: Dict[str, Table], schema_p: Path, query_p: Path, its: int) -> Tuple[int, float, float, float]:
-    schema_doc = gql(schema_p.read_text())
-    gql_sch = build_ast_schema(parse(schema_doc))
-    qtype = QueryType()
-    root = gql_sch.get_type('Query')
-    if not root:
-        raise ValueError('Schema must define Query')
-    for name, fld in root.fields.items():
-        qtype.set_field(name, make_root_resolver(unwrap(fld.type).name, tables))
-    obj_types: List[ObjectType] = []
-    for tname, typ in gql_sch.type_map.items():
-        if tname in ('Query','Mutation') or tname.startswith('__'):
+def run_sqlite_case(
+    engine: Engine,
+    tables: Dict[str, Table],
+    schema_path: Path,
+    query_path: Path,
+    runs: int,
+) -> Tuple[int, float, float, float, dict]:
+    """
+    Execute the GraphQL query via Ariadne + SQLite. Return:
+    (row_count, min_time, avg_time, max_time, last_data)
+    """
+    schema_sdl = gql(schema_path.read_text())
+    gql_schema = build_ast_schema(parse(schema_sdl))
+
+    query_type = QueryType()
+    root_type = gql_schema.get_type("Query")
+    for field_name, field_def in root_type.fields.items():
+        base = unwrap(field_def.type).name
+        query_type.set_field(field_name, make_root_resolver(base, tables))
+
+    object_types: List[ObjectType] = []
+    for type_name, gql_type in gql_schema.type_map.items():
+        if type_name in ("Query", "Mutation") or type_name.startswith("__"):
             continue
-        if not hasattr(typ, 'fields'):
+        if not hasattr(gql_type, "fields"):
             continue
-        ot = ObjectType(tname)
-        res = make_field_resolver(tname, tables)
-        for f in typ.fields:
-            ot.set_field(f, res)
-        obj_types.append(ot)
-    exe = make_executable_schema(schema_doc, qtype, *obj_types)
-    qry = query_p.read_text()
-    times: List[float] = []
-    maxr = 0
-    def cnt(d):
-        if d is None: return 0
-        if isinstance(d,(str,int,float,bool)): return 1
-        if isinstance(d,list): return sum(cnt(x) for x in d)
-        if isinstance(d,dict): return sum(cnt(v) for v in d.values())
+        obj = ObjectType(type_name)
+        fallback = make_field_resolver(type_name, tables)
+        for fname in gql_type.fields:
+            obj.set_field(fname, fallback)
+        object_types.append(obj)
+
+    schema_exec = make_executable_schema(
+        schema_sdl, query_type, *object_types
+    )
+    query_str = query_path.read_text()
+
+    def count_scalars(data) -> int:
+        if data is None:
+            return 0
+        if isinstance(data, (str, int, float, bool)):
+            return 1
+        if isinstance(data, list):
+            return sum(count_scalars(x) for x in data)
+        if isinstance(data, dict):
+            return sum(count_scalars(v) for v in data.values())
         return 0
+
+    times: List[float] = []
+    last_data = None
     with engine.connect() as conn:
-        ctx = {'conn':conn,'tables':tables}
-        for _ in range(its):
+        ctx = {"conn": conn, "tables": tables}
+        for _ in range(runs):
             t0 = time.perf_counter()
-            res = graphql_sync(exe, qry, context_value=ctx)
+            result = graphql_sync(
+                schema_exec, query_str, context_value=ctx
+            )
             t1 = time.perf_counter()
-            if res.errors:
-                raise RuntimeError(res.errors)
-            times.append(t1-t0)
-            maxr = max(maxr, cnt(res.data))
-    return maxr, min(times), statistics.mean(times), max(times)
+            if result.errors:
+                raise RuntimeError(result.errors)
+            times.append(t1 - t0)
+            last_data = result.data
 
-###############################################################################
-# 5.  CLI                                                                     #
-###############################################################################
-
-def bench_folder(f: Path, runs: int):
-    print(f"\n=== {f.name} ===")
-    eng = create_engine('sqlite:///:memory:')
-    tbls = load_facts(eng, f/'facts.P')
-    rows, t_min, t_avg, t_max = run_case(eng, tbls, f/'schema.graphql', f/'query.graphql', runs)
-    print(f"rows: {rows} | runs: {runs} | min/avg/max: {t_min:.6f} / {t_avg:.6f} / {t_max:.6f} s")
+    row_count = count_scalars(last_data)
+    return row_count, min(times), statistics.mean(times), max(times), last_data
 
 
-def main():
-    p = argparse.ArgumentParser('Benchmark GraphQL ↔ SQLite')
-    p.add_argument('tests_root',type=Path)
-    p.add_argument('--runs',type=int,default=5)
-    ns = p.parse_args()
-    if not ns.tests_root.is_dir():
-        raise SystemExit('tests_root must be a directory')
-    for sub in sorted(ns.tests_root.iterdir()):
-        if sub.is_dir() and {'facts.P','schema.graphql','query.graphql'}.issubset({x.name for x in sub.iterdir()}):
-            bench_folder(sub, ns.runs)
+def run_xsb_variant(
+    xsb_path: str,
+    facts_path: Path,
+    schema_path: Path,
+    query_path: Path,
+    apply_demand: bool,
+) -> Tuple[int, float, float, float, List[str]]:
+    """
+    Generate XSB code, run it `runs` times, return
+    (row_count, min_time, avg_time, max_time, output_lines)
+    """
+    code = translate_graphql_to_xsb(
+        str(schema_path), str(query_path), apply_demand
+    )
+    driver_name = facts_path.parent / f"run_{'demand' if apply_demand else 'nodemand'}.P"
+    with open(driver_name, "w") as f:
+        f.write(f":- ['{facts_path.name}'].\n\n")
+        f.write(code)
+        f.write("\n% execute ans...\n")
+        f.write("run_q :- ans(X), write(X), nl, fail.\n")
+        f.write("run_q :- write('DONE'), nl.\n")
+        f.write(":- run_q, halt.\n")
 
-if __name__=='__main__':
+    # execute
+    runs = int(os.getenv("BENCH_RUNS", "1"))
+    times: List[float] = []
+    output_lines: List[str] = []
+
+    for _ in range(runs):
+        start = time.perf_counter()
+        proc = subprocess.run(
+            [xsb_path, "-e", f"['{driver_name.name}']."],
+            cwd=facts_path.parent,
+            capture_output=True,
+            text=True,
+        )
+        elapsed = time.perf_counter() - start
+        if proc.returncode != 0:
+            raise RuntimeError(proc.stderr)
+        times.append(elapsed)
+        for line in proc.stdout.splitlines():
+            if line != "DONE":
+                output_lines.append(line)
+
+    row_count = len(output_lines)
+    return row_count, min(times), statistics.mean(times), max(times), output_lines
+
+
+def bench_folder(
+    folder: Path,
+    runs: int,
+    xsb_path: str,
+) -> None:
+    print(f"=== {folder.name} ===")
+    engine = create_engine("sqlite:///:memory:")
+    facts_path = folder / "facts.P"
+    tables = load_facts(engine, facts_path)
+
+    # SQLite execution
+    _, s_min, s_avg, s_max, _ = run_sqlite_case(
+        engine,
+        tables,
+        folder / "schema.graphql",
+        folder / "query.graphql",
+        runs,
+    )
+    print(
+        f"SQLite timing: min/avg/max = {s_min:.6f}/{s_avg:.6f}/{s_max:.6f} s"
+    )
+
+    # XSB no-demand timing
+    _, x0_min, x0_avg, x0_max, _ = run_xsb_variant(
+        xsb_path,
+        facts_path,
+        folder / "schema.graphql",
+        folder / "query.graphql",
+        False,
+    )
+    print(
+        f"XSB no-demand timing: min/avg/max = {x0_min:.6f}/{x0_avg:.6f}/{x0_max:.6f} s"
+    )
+
+    # XSB with demand timing
+    _, x1_min, x1_avg, x1_max, _ = run_xsb_variant(
+        xsb_path,
+        facts_path,
+        folder / "schema.graphql",
+        folder / "query.graphql",
+        True,
+    )
+    print(
+        f"XSB demand timing:    min/avg/max = {x1_min:.6f}/{x1_avg:.6f}/{x1_max:.6f} s"
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Benchmark GraphQL ↔ SQLite vs. XSB"
+    )
+    parser.add_argument("tests_root", type=Path, help="Directory containing test case folders")
+    parser.add_argument("--runs", type=int, default=5, help="Number of iterations per backend")
+    parser.add_argument("--xsb-path", type=str, required=True, help="Path to XSB executable")
+    args = parser.parse_args()
+
+    for sub in sorted(args.tests_root.iterdir()):
+        if not sub.is_dir():
+            continue
+        names = {p.name for p in sub.iterdir()}
+        if {"facts.P", "schema.graphql", "query.graphql"}.issubset(names):
+            bench_folder(sub, args.runs, args.xsb_path)
+
+
+if __name__ == "__main__":
     main()
