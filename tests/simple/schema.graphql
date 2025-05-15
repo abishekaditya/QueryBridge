@@ -1,0 +1,4 @@
+# Super simple schema with single field
+type Query {
+  hello: String
+}

@@ -1,0 +1,14 @@
+# Filter test GraphQL query with multiple filters
+query {
+  users(
+    minAge: 25
+    maxAge: 35
+    role: "developer"
+    active: true
+  ) {
+    id
+    name
+    age
+    role
+  }
+}

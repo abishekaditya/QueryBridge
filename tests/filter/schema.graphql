@@ -1,0 +1,19 @@
+# Filter test GraphQL schema for QueryBridge testing
+
+type User {
+  id: ID!
+  name: String!
+  age: Int!
+  role: String!
+  active: Boolean!
+}
+
+type Query {
+  # Query with multiple filter arguments
+  users(
+    minAge: Int
+    maxAge: Int
+    role: String
+    active: Boolean
+  ): [User!]
+}

@@ -1,0 +1,56 @@
+% Filter test facts for QueryBridge with multiple filters
+
+% Root query
+users_ext(root).
+user_ext(root, "1").
+user_ext(root, "2").
+user_ext(root, "3").
+user_ext(root, "4").
+user_ext(root, "5").
+
+% User data with various attributes for filtering
+user_ext(root, "1").
+user_ext("1").
+id_ext("1", "1").
+name_ext("1", "Alice").
+age_ext("1", 28).
+role_ext("1", "developer").
+active_ext("1", true).
+
+user_ext(root, "2").
+user_ext("2").
+id_ext("2", "2").
+name_ext("2", "Bob").
+age_ext("2", 32).
+role_ext("2", "developer").
+active_ext("2", true).
+
+user_ext(root, "3").
+user_ext("3").
+id_ext("3", "3").
+name_ext("3", "Charlie").
+age_ext("3", 24).
+role_ext("3", "developer").
+active_ext("3", true).
+
+user_ext(root, "4").
+user_ext("4").
+id_ext("4", "4").
+name_ext("4", "Dave").
+age_ext("4", 38).
+role_ext("4", "manager").
+active_ext("4", true).
+
+user_ext(root, "5").
+user_ext("5").
+id_ext("5", "5").
+name_ext("5", "Eve").
+age_ext("5", 30).
+role_ext("5", "developer").
+active_ext("5", false).
+
+% The query should only return users with:
+% - age between 25 and 35 (inclusive)
+% - role = "developer"
+% - active = true
+% This should match only Alice(28) and Bob(32) from our data

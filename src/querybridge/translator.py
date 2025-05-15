@@ -472,19 +472,59 @@ def generate_predicate_rules(field: QueryField, predicates: List[str], rules: Li
     if demand_info and demand_info.applied:
         body_parts.append(f"{demand_info.magic_pred}({field.parent_var})")
 
+    # Initialize filter_parts here
+    filter_parts = []
+    
     # Add the base predicate
     if field.is_scalar:
         # For scalar fields, we need both parent and child variables
         ext_pred = f"{field.name}_ext({field.parent_var}, {field.child_var})"
     else:
-        # For object fields, we only need the parent variable
+        # For object fields with arguments, we might need special handling
         ext_pred = f"{field.name}_ext({field.parent_var})"
+        
+        # If we have arguments and this is a container of objects (like "users")
+        # we need to extract individual records to apply filters to
+        if field.arguments and not field.is_scalar:
+            # Derive singular name for records (users -> user)
+            singular_name = field.name[:-1] if field.name.endswith("s") else field.name
+            
+            # Extract individual records from the container
+            # This connects ROOT to each specific record that will be filtered
+            current_var = f"{singular_name.upper()}_ID"
+            filter_parts.append(f"{singular_name}_ext({field.parent_var}, {current_var})")
+            
+            # Apply all filter queries to the individual records (not to ROOT)
+            # This resets the parent_var for filter conditions to be the ID of the record
+            field.parent_var = current_var
 
     body_parts.append(ext_pred)
 
     # Add filters for arguments
-    for arg_var, arg_value in arg_vars:
-        body_parts.append(f"{arg_var} = {format_value(arg_value)}")
+    for arg_name, arg_value in field.arguments:
+        # Generic handling of arguments based on name patterns
+        if arg_name.startswith("min"):
+            # Field name is the rest of the string after "min" with first letter lowercase
+            field_name = arg_name[3:].lower()
+            # In XSB we use @>= for comparison
+            filter_parts.append(f"{field_name}_ext({field.parent_var}, {field_name.upper()}_{field.child_var})")
+            filter_parts.append(f"{field_name.upper()}_{field.child_var} @>= {arg_value}")
+        elif arg_name.startswith("max"):
+            # Field name is the rest of the string after "max" with first letter lowercase
+            field_name = arg_name[3:].lower()
+            # In XSB we use @=< for comparison
+            filter_parts.append(f"{field_name}_ext({field.parent_var}, {field_name.upper()}_{field.child_var})")
+            filter_parts.append(f"{field_name.upper()}_{field.child_var} @=< {arg_value}")
+        elif arg_value.lower() in ("true", "false"):
+            # Handle boolean values
+            bool_val = arg_value.lower()
+            filter_parts.append(f"{arg_name}_ext({field.parent_var}, {bool_val})")
+        else:
+            # Regular exact match filter (default case)
+            filter_parts.append(f"{arg_name}_ext({field.parent_var}, {format_value(arg_value)})")
+    
+    # Add filter conditions to body parts
+    body_parts.extend(filter_parts)
 
     # Combine into a rule
     rule = f"{pred_signature} :- {', '.join(body_parts)}."
@@ -568,6 +608,38 @@ def generate_answer_predicate(root_fields: List[QueryField], rules: List[str]) -
     if field_vars:
         # Use capitalized variables both in the head and in the body
         head = f"ans({', '.join(field_vars)})"
+        
+        # Create a special case for fields with filter arguments
+        for field in root_fields:
+            # Check if it's a query with filter arguments
+            if field.arguments:
+                # Generically handle any field with arguments as a potential filter
+                # Rewrite the query pattern for proper filtering
+                singular_name = field.name[:-1] if field.name.endswith("s") else field.name
+                plural_name = field.name
+                record_var = f"{plural_name.upper()}_1"
+                
+                # Filter the records by explicitly accessing the individual records
+                # that satisfy the filter conditions in the result rule
+                record_var = f"{singular_name.upper()}_ID"
+                filtered_parts = [
+                    f"{plural_name}_ext(ROOT)",       # Start from root
+                    f"{plural_name}_result(ROOT)",    # Apply filters from result rule
+                    # Get record IDs that match our filter criteria
+                    f"{singular_name}_ext(ROOT, {record_var})",
+                        # This ensures we connect the filtered records to the result fields
+                    f"{singular_name.upper()}_1 = {record_var}"
+                ]
+                
+                # Keep non-filter predicate parts
+                other_parts = [
+                    part for part in unique_body_parts 
+                    if not part.startswith(f"{plural_name}_ext") and not part.startswith(f"{plural_name}_result")
+                ]
+                
+                unique_body_parts = filtered_parts + other_parts
+                break
+                
         body = ', '.join(unique_body_parts)
         rules.append(f"{head} :- {body}.")
     else:

@@ -1,0 +1,4 @@
+# Super simple query
+query {
+  hello
+}

@@ -132,6 +132,7 @@ def run_test_for_dir(test_dir: Path) -> bool:
 
     # compare
     if res_no == res_yes:
+        # print(res_no)
         print("   PASS: outputs match")
         return True
     else:

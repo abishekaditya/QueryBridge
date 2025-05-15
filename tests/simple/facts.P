@@ -1,0 +1,2 @@
+% Super simple facts file
+hello_ext(root, "Hello, world!").
