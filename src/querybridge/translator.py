@@ -480,23 +480,40 @@ def generate_predicate_rules(field: QueryField, predicates: List[str], rules: Li
         # For scalar fields, we need both parent and child variables
         ext_pred = f"{field.name}_ext({field.parent_var}, {field.child_var})"
     else:
-        # For object fields with arguments, we might need special handling
+        # For object fields, determine the correct approach based on argument patterns
         ext_pred = f"{field.name}_ext({field.parent_var})"
-        
-        # If we have arguments and this is a container of objects (like "users")
-        # we need to extract individual records to apply filters to
+
+        # Special handling for fields with arguments
         if field.arguments and not field.is_scalar:
-            # Derive singular name for records (users -> user)
-            singular_name = field.name[:-1] if field.name.endswith("s") else field.name
+            # Determine if this is likely a filtering collection or a single-object lookup
+            # Check if any argument is a filter (starts with min/max or is boolean)
+            has_filter_args = any(
+                arg_name.startswith("min") or arg_name.startswith("max") or 
+                arg_value.lower() in ("true", "false")
+                for arg_name, arg_value in field.arguments
+            )
             
-            # Extract individual records from the container
-            # This connects ROOT to each specific record that will be filtered
-            current_var = f"{singular_name.upper()}_ID"
-            filter_parts.append(f"{singular_name}_ext({field.parent_var}, {current_var})")
+            # Check if any arguments match exact name pattern (like "name", "id")
+            # These are typically used for direct lookups rather than filtering
+            has_lookup_args = any(
+                arg_name in ("id", "name", "key", "slug", "code")
+                for arg_name, _ in field.arguments
+            )
             
-            # Apply all filter queries to the individual records (not to ROOT)
-            # This resets the parent_var for filter conditions to be the ID of the record
-            field.parent_var = current_var
+            # If we have filter args, treat this as a collection with filtering
+            if has_filter_args and not has_lookup_args:
+                # This is likely a filtering query (e.g., users with age filters)
+                # Derive singular name for records (users -> user)
+                singular_name = field.name[:-1] if field.name.endswith("s") else field.name
+                
+                # Extract individual records from the container
+                # This connects ROOT to each specific record that will be filtered
+                current_var = f"{singular_name.upper()}_ID"
+                filter_parts.append(f"{singular_name}_ext({field.parent_var}, {current_var})")
+                
+                # Apply all filter queries to the individual records (not to ROOT)
+                # This resets the parent_var for filter conditions to be the ID of the record
+                field.parent_var = current_var
 
     body_parts.append(ext_pred)
 
@@ -609,36 +626,52 @@ def generate_answer_predicate(root_fields: List[QueryField], rules: List[str]) -
         # Use capitalized variables both in the head and in the body
         head = f"ans({', '.join(field_vars)})"
         
-        # Create a special case for fields with filter arguments
+        # Handle fields with arguments intelligently
         for field in root_fields:
-            # Check if it's a query with filter arguments
             if field.arguments:
-                # Generically handle any field with arguments as a potential filter
-                # Rewrite the query pattern for proper filtering
-                singular_name = field.name[:-1] if field.name.endswith("s") else field.name
-                plural_name = field.name
-                record_var = f"{plural_name.upper()}_1"
+                # Analyze the arguments to determine the query type
+                # Check if any argument is a filter (starts with min/max or is boolean)
+                has_filter_args = any(
+                    arg_name.startswith("min") or arg_name.startswith("max") or 
+                    arg_value.lower() in ("true", "false")
+                    for arg_name, arg_value in field.arguments
+                )
                 
-                # Filter the records by explicitly accessing the individual records
-                # that satisfy the filter conditions in the result rule
-                record_var = f"{singular_name.upper()}_ID"
-                filtered_parts = [
-                    f"{plural_name}_ext(ROOT)",       # Start from root
-                    f"{plural_name}_result(ROOT)",    # Apply filters from result rule
-                    # Get record IDs that match our filter criteria
-                    f"{singular_name}_ext(ROOT, {record_var})",
-                        # This ensures we connect the filtered records to the result fields
-                    f"{singular_name.upper()}_1 = {record_var}"
-                ]
+                # Check if any arguments match exact name pattern (like "name", "id")
+                has_lookup_args = any(
+                    arg_name in ("id", "name", "key", "slug", "code")
+                    for arg_name, _ in field.arguments
+                )
                 
-                # Keep non-filter predicate parts
-                other_parts = [
-                    part for part in unique_body_parts 
-                    if not part.startswith(f"{plural_name}_ext") and not part.startswith(f"{plural_name}_result")
-                ]
-                
-                unique_body_parts = filtered_parts + other_parts
-                break
+                # Different handling based on query type
+                if has_filter_args and not has_lookup_args:
+                    # This is a filtering query (e.g., users with age/role filters)
+                    singular_name = field.name[:-1] if field.name.endswith("s") else field.name
+                    plural_name = field.name
+                    record_var = f"{singular_name.upper()}_ID"
+                    
+                    # Filter the records by explicitly accessing the individual records
+                    # that satisfy the filter conditions in the result rule
+                    filtered_parts = [
+                        f"{plural_name}_ext(ROOT)",        # Start from root
+                        f"{plural_name}_result(ROOT)",     # Apply filters from result rule
+                        f"{singular_name}_ext(ROOT, {record_var})",  # Get record IDs that match criteria
+                        f"{singular_name.upper()}_1 = {record_var}"  # Connect to the result fields
+                    ]
+                    
+                    # Keep non-filter predicate parts
+                    other_parts = [
+                        part for part in unique_body_parts 
+                        if not part.startswith(f"{plural_name}_ext") and not part.startswith(f"{plural_name}_result")
+                    ]
+                    
+                    unique_body_parts = filtered_parts + other_parts
+                    break
+                elif has_lookup_args:
+                    # This is a lookup query (e.g., project(name: "GraphQL"))
+                    # No need to rewrite the query pattern, just ensure connection to result predicates
+                    # The original query will work because it directly looks up the object
+                    pass
                 
         body = ', '.join(unique_body_parts)
         rules.append(f"{head} :- {body}.")
