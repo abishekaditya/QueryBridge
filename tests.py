@@ -21,6 +21,38 @@ import sys
 import tempfile
 from pathlib import Path
 from cleanup import clean
+import ast
+from typing import List
+
+def extract_arrays(text: str) -> List[List[int]]:
+    """
+    Find all occurrences of “[<digits, optional spaces, commas>]” in the input
+    and return them as Python lists of ints.
+    """
+    # This regex matches any single-level “[<number>(,<number>)*]”
+    array_pattern = re.compile(r'\[\s*(?:\d+\s*(?:,\s*\d+)*)\s*\]')
+    raw_arrays = array_pattern.findall(text)
+    result: List[List[int]] = []
+    for arr in raw_arrays:
+        # ast.literal_eval turns the string "[65,108,…]" into [65,108,…]
+        parsed = ast.literal_eval(arr)
+        if isinstance(parsed, list) and all(isinstance(n, int) for n in parsed):
+            result.append(parsed)
+    return result
+
+def decode_arrays(arrays: List[List[int]]) -> List[str]:
+    """
+    Given a list of lists of ASCII codes, return their decoded strings.
+    """
+    return ["".join(chr(code) for code in arr) for arr in arrays]
+
+def extract_and_decode(text: str) -> List[str]:
+    """
+    Convenience wrapper: from a big text blob, extract all numeric arrays
+    and decode each into its ASCII string.
+    """
+    arrays = extract_arrays(text)
+    return decode_arrays(arrays)
 
 # project root and tests folder
 project_root = Path(__file__).parent.absolute()
@@ -132,7 +164,7 @@ def run_test_for_dir(test_dir: Path) -> bool:
 
     # compare
     if res_no == res_yes:
-        # print(res_no)
+        # print(extract_and_decode(res_no))
         print("   PASS: outputs match")
         return True
     else:
